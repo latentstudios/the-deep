@@ -25,6 +25,30 @@
   .hats button span { font-size:24px; line-height:1.1; }
   .hats button.on { border-color:var(--cyan); background:rgba(90,209,255,.15); }
   .hats button.locked { opacity:.45; }
+  /* Shoal Sort */
+  #sortWrap { background:radial-gradient(ellipse at center, rgba(4,16,31,.2), rgba(4,16,31,.7)); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+  .sortpanel { max-width:560px; }
+  .sorthead { display:flex; justify-content:space-between; align-items:center; margin:6px 0 10px; gap:10px; min-height:26px; }
+  .air { font-size:20px; letter-spacing:2px; }
+  .air .gone { opacity:.18; filter:grayscale(1); }
+  .opp { font-size:14px; color:var(--muted); text-align:right; }
+  .opp b { color:var(--cyan); }
+  .board { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .tile { margin:0; padding:0 4px; height:68px; border-radius:12px; font-size:clamp(11px, 3.1vw, 16px); font-weight:700; letter-spacing:.3px; text-transform:uppercase; line-height:1.1;
+          background:rgba(220,240,255,.1); color:var(--ink); border:1px solid var(--line); overflow-wrap:anywhere; transition:transform .12s, background .15s; }
+  .tile:hover { background:rgba(220,240,255,.17); }
+  .tile.sel { background:#eaf6ff; color:#04101f; transform:translateY(-2px) scale(1.03); }
+  .tile.long { font-size:clamp(9px, 2.4vw, 13px); }
+  .board.shake { animation:shake .4s; }
+  @keyframes shake { 20%,60% { transform:translateX(-8px); } 40%,80% { transform:translateX(8px); } }
+  .group { border-radius:12px; padding:10px; margin-bottom:8px; text-align:center; color:#04101f; animation:pop .35s ease-out; }
+  .group b { display:block; font-size:16px; text-transform:uppercase; letter-spacing:.5px; }
+  .group span { font-size:14px; text-transform:uppercase; }
+  .group.t3 { color:#ffe9a8; border:1px solid #ffd66b; }
+  @keyframes pop { from { transform:scale(.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .sortbtns { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:6px; }
+  .sortbtns button { margin:0; padding:10px 4px; font-size:15px; }
+  .hintname { color:var(--gold); font-weight:600; }
   #gear { position:fixed; top:12px; right:12px; width:46px; height:46px; margin:0; padding:0; border-radius:50%; font-size:22px; background:rgba(0,0,0,.35); color:#fff; border:1px solid var(--line); z-index:25; }
   #settings { z-index:30; }
   .set-row { display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px; font-size:19px; font-weight:600; }
@@ -82,7 +106,7 @@
   .tierchip { display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:8px; color:#04101f; margin-left:4px; vertical-align:middle; }
   .deep { color:var(--muted); font-size:14px; margin-top:12px; }
   .deep b { color:var(--t4); font-weight:600; }
-  .grid { font-size:26px; letter-spacing:3px; text-align:center; margin:8px 0; }
+  .grid { font-size:26px; letter-spacing:3px; text-align:center; margin:8px 0; white-space:pre-line; line-height:1.2; }
   #toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--line); padding:10px 18px; border-radius:12px; font-size:16px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:10; }
   #toast.show { opacity:1; }
 </style>
@@ -98,6 +122,12 @@
     <input id="name" maxlength="12">
     <button class="coral" id="btnDaily">Today's Dive</button>
     <button class="ghost" id="btnPractice">Practice Dive</button>
+    <div class="divider">— 🐚 Shoal Sort: find the 4 hidden groups —</div>
+    <div class="row">
+      <button class="coral" id="btnSortDaily">Today's Puzzle</button>
+      <button class="ghost" id="btnSortPractice">Practice</button>
+    </div>
+    <div class="divider">— your krill —</div>
     <button class="ghost" id="btnCustom">🎨 Customise Krill</button>
     <div class="divider">— duel a friend —</div>
     <button id="btnHost">Host Duel</button>
@@ -131,13 +161,15 @@
       <div class="code" id="codeText">····</div>
     </div>
     <div id="setBox">
+      <label>Game</label>
+      <div class="seg"><button id="gameDive" class="on">🦐 Krill Dive</button><button id="gameSort">🐚 Shoal Sort</button></div>
       <label>Questions</label>
       <div class="seg"><button id="setDaily" class="on">Today's set</button><button id="setRandom">Random set</button></div>
     </div>
     <div class="status" id="lobbyStatus">Starting up…</div>
     <button class="coral" id="btnStart" disabled>Start Duel</button>
     <button class="ghost" id="btnLeave">Leave</button>
-    <div class="help">Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b></div>
+    <div class="help" id="lobbyHelp">Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b></div>
   </div>
 </div>
 
@@ -152,6 +184,25 @@
       <div class="tries" id="qTries"></div>
     </div>
     <div id="qReveal" class="reveal hidden"></div>
+  </div>
+</div>
+
+<div id="sortWrap" class="overlay hidden">
+  <div class="panel sortpanel">
+    <div class="qhead"><span id="sortTitle">Shoal Sort</span><span id="sortTime">0:00</span></div>
+    <div class="sorthead">
+      <div class="air" id="sortAir"></div>
+      <div class="opp hidden" id="sortOpp"></div>
+    </div>
+    <div id="sortSolved"></div>
+    <div class="board" id="sortBoard"></div>
+    <div class="fb" id="sortFb">Pick 4 words that belong together.</div>
+    <div class="sortbtns">
+      <button class="ghost" id="btnShuffle">🔀 Shuffle</button>
+      <button class="ghost" id="btnClear">Clear</button>
+      <button class="ghost" id="btnSonar">📡 Sonar</button>
+      <button class="coral" id="btnSubmit" disabled>Submit</button>
+    </div>
   </div>
 </div>
 
@@ -636,6 +687,7 @@ let shownDepth = 0, oppShownDepth = 0;
 function startGame({ seed, daily, duel }) {
   game = { seed, daily, duel, cats: pickCats(seed), i: 0, total: 0, oppTotal: 0, mine: [], theirs: [], oppLocks: {}, locked: null, tries: [], countsAsDaily: daily && !dailyDone() };
   shownDepth = 0; oppShownDepth = 0;
+  lastMode = 'dive';
   SFX.dive();
   showScreen('qWrap');
   askQuestion();
@@ -766,10 +818,218 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = shareText();
+  const txt = lastMode === 'sort' ? sortShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
+
+// =====================================================================
+//  Shoal Sort: find the four hidden groups of four
+// =====================================================================
+const SORT_TIERS = [
+  { name: 'Shallows', col: '#5fe3d0', emoji: '🟦' },
+  { name: 'Reef', col: '#ff9a76', emoji: '🟧' },
+  { name: 'Twilight', col: '#a98bff', emoji: '🟪' },
+  { name: 'Abyss', col: '#14213d', emoji: '⬛' },
+];
+// each puzzle lists its groups from easiest (Shallows) to trickiest (Abyss)
+const SORT_PUZZLES = [
+  [['Sea creatures', 'SHARK,WHALE,OCTOPUS,CRAB'], ['Things with shells', 'TURTLE,SNAIL,EGG,TACO'], ['Card games', 'SNAP,WAR,HEARTS,SPEED'], ['___ fish', 'GOLD,SWORD,CAT,STAR']],
+  [['Pizza toppings', 'PEPPERONI,MUSHROOM,OLIVE,ONION'], ['Chocolate bars', 'TWIX,SNICKERS,KITKAT,ROLO'], ['Planets', 'MARS,VENUS,SATURN,MERCURY'], ['___ fall', 'WATER,RAIN,LAND,NIGHT']],
+  [['Things in the sky', 'SUN,CLOUD,KITE,MOON'], ['Fruits', 'ORANGE,LEMON,LIME,PLUM'], ['Colours', 'RED,GREEN,PINK,WHITE'], ['___ berry', 'STRAW,RASP,GOOSE,BLUE']],
+  [['Farm animals', 'COW,SHEEP,GOAT,HORSE'], ['Parts of a clock', 'FACE,HANDS,NUMBERS,ALARM'], ['Things that melt', 'CHOCOLATE,BUTTER,CHEESE,ICE'], ['___ pen', 'PIG,PLAY,FOUNTAIN,BALLPOINT']],
+  [['Weather', 'RAIN,SNOW,HAIL,FOG'], ['Sports', 'TENNIS,GOLF,POLO,CRICKET'], ['Insects', 'ANT,BEE,MOTH,WASP'], ['Things with keys', 'PIANO,KEYBOARD,MAP,LOCK']],
+  [['Shapes', 'CIRCLE,SQUARE,TRIANGLE,OVAL'], ['Playing cards', 'KING,QUEEN,JACK,ACE'], ['Chess pieces', 'ROOK,KNIGHT,BISHOP,PAWN'], ['Things you can draw', 'BATH,CURTAINS,SWORD,BREATH']],
+  [['Breakfast foods', 'TOAST,CEREAL,BACON,PANCAKE'], ['Parts of a tree', 'ROOT,LEAF,BRANCH,TRUNK'], ['Things a dog does', 'BARK,FETCH,SIT,BEG'], ['___ bank', 'RIVER,PIGGY,FOOD,BLOOD']],
+  [['Superheroes', 'BATMAN,SUPERMAN,HULK,THOR'], ['Greek gods', 'ZEUS,POSEIDON,ATHENA,HERMES'], ['Car brands', 'FORD,JAGUAR,MERCEDES,TESLA'], ['Things with wings', 'PLANE,ANGEL,BUTTERFLY,DRAGON']],
+  [['Vegetables', 'CARROT,PEA,CORN,POTATO'], ['In the bathroom', 'TOWEL,SOAP,MIRROR,TUB'], ['___ cake', 'CUP,PAN,CHEESE,SPONGE'], ['Things you can pop', 'BUBBLE,BALLOON,CORK,QUESTION']],
+  [['Dog breeds', 'POODLE,BEAGLE,PUG,CORGI'], ['Stripy things', 'ZEBRA,TIGER,BEE,BARCODE'], ['Golf words', 'TEE,PAR,BIRDIE,EAGLE'], ['___ shorts', 'BOXER,BOARD,CARGO,BIKE']],
+  [['Instruments', 'DRUM,FLUTE,HARP,VIOLIN'], ['Fish', 'SALMON,COD,TUNA,BASS'], ['Coffee drinks', 'LATTE,MOCHA,ESPRESSO,AMERICANO'], ['Grand ___', 'CANYON,SLAM,PRIX,PIANO']],
+  [['Fruits', 'PEAR,MANGO,KIWI,PEACH'], ['Rivers', 'NILE,AMAZON,THAMES,DANUBE'], ['Tech companies', 'GOOGLE,APPLE,META,NETFLIX'], ['Come in bunches', 'GRAPES,BANANAS,FLOWERS,KEYS']],
+  [['Halloween', 'PUMPKIN,GHOST,WITCH,CANDY'], ['Minecraft mobs', 'ZOMBIE,SKELETON,ENDERMAN,BLAZE'], ['Baseball', 'BAT,GLOVE,PITCH,BASE'], ['Plants', 'CREEPER,IVY,FERN,MOSS']],
+  [['Yellow things', 'BANANA,SUN,LEMON,BUTTER'], ['Animal sounds', 'MOO,OINK,QUACK,HISS'], ['Pokemon', 'PIKACHU,EEVEE,SNORLAX,MEW'], ['Words for sleep', 'NAP,DOZE,SNOOZE,SLUMBER']],
+  [['Joints', 'KNEE,ELBOW,ANKLE,WRIST'], ['Reptiles', 'GECKO,IGUANA,COBRA,TORTOISE'], ['Computer gear', 'KEYBOARD,MONITOR,SPEAKER,WEBCAM'], ['___ pad', 'LAUNCH,LILY,MOUSE,NOTE']],
+  [['Board games', 'CHESS,MONOPOLY,CLUE,RISK'], ['Polite words', 'PLEASE,THANKS,SORRY,PARDON'], ['Detective words', 'SUSPECT,ALIBI,MOTIVE,WITNESS'], ['Words for danger', 'HAZARD,PERIL,THREAT,MENACE']],
+  [['Ice cream flavours', 'VANILLA,CHOCOLATE,MINT,STRAWBERRY'], ['In a wallet', 'CASH,CARD,COIN,PHOTO'], ['Herbs', 'BASIL,SAGE,THYME,DILL'], ['Shades of green', 'LIME,OLIVE,EMERALD,JADE']],
+  [['The ocean', 'WAVE,TIDE,CORAL,REEF'], ['Card games', 'UNO,POKER,SOLITAIRE,BLACKJACK'], ['Hand gestures', 'POINT,CLAP,SNAP,SALUTE'], ['Things with needles', 'PINE,CACTUS,HEDGEHOG,COMPASS']],
+  [['Desserts', 'CAKE,PIE,PUDDING,TRIFLE'], ['Metals', 'SILVER,BRONZE,IRON,GOLD'], ['At the circus', 'ACROBAT,JUGGLER,TRAPEZE,RINGMASTER'], ['___ fish', 'JELLY,STAR,SWORD,CLOWN']],
+  [['School subjects', 'MATH,ART,MUSIC,HISTORY'], ['Painting tools', 'BRUSH,EASEL,CANVAS,PALETTE'], ['Weather words', 'FAIR,SUNNY,STORMY,CLOUDY'], ['Play ___', 'CARDS,TAG,DEAD,CATCH']],
+  [['Dinosaurs', 'T-REX,RAPTOR,TRICERATOPS,STEGOSAURUS'], ['Birds of prey', 'EAGLE,HAWK,OWL,KESTREL'], ['Avengers', 'THOR,HULK,FALCON,VISION'], ['Ways to look', 'PEEK,GLANCE,STARE,GLARE']],
+  [['Kitchen gadgets', 'TOASTER,KETTLE,BLENDER,OVEN'], ['Bee things', 'HIVE,HONEY,STING,POLLEN'], ['Toy Story characters', 'WOODY,BUZZ,JESSIE,BO PEEP'], ['Things that whistle', 'REFEREE,TRAIN,BIRD,WIND']],
+  [['Countries', 'JAPAN,PERU,EGYPT,CHILE'], ['Spicy things', 'JALAPENO,HABANERO,CAYENNE,WASABI'], ['Thanksgiving dinner', 'TURKEY,STUFFING,GRAVY,CRANBERRY'], ['Crockery', 'CHINA,PLATE,BOWL,MUG']],
+  [['Space', 'ROCKET,ASTEROID,COMET,GALAXY'], ['Comic sound effects', 'BOOM,POW,ZAP,WHAM'], ['Santa\'s reindeer', 'DASHER,DANCER,PRANCER,VIXEN'], ['___ ship', 'FRIEND,BATTLE,LEADER,WAR']],
+  [['Tools', 'HAMMER,SAW,DRILL,WRENCH'], ['Jobs', 'DOCTOR,PILOT,CHEF,TEACHER'], ['Sour things', 'VINEGAR,LIME,PICKLE,GRAPEFRUIT'], ['Kinds of shark', 'TIGER,BULL,LEMON,NURSE']],
+  [['Feelings', 'HAPPY,SAD,ANGRY,SCARED'], ['On a bed', 'PILLOW,SHEET,BLANKET,DUVET'], ['Ways to laugh', 'GIGGLE,CHUCKLE,SNORT,CACKLE'], ['Seven Dwarfs', 'GRUMPY,SLEEPY,DOPEY,SNEEZY']],
+  [['Transport', 'BUS,BOAT,PLANE,TRAIN'], ['Paper ___', 'CLIP,TOWEL,ROUTE,WEIGHT'], ['Things with tracks', 'TANK,ALBUM,ROLLERCOASTER,SNOWMOBILE'], ['Things with a trunk', 'ELEPHANT,TREE,CAR,TORSO']],
+  [['Organs', 'LIVER,LUNG,KIDNEY,BRAIN'], ['Gems', 'RUBY,PEARL,OPAL,SAPPHIRE'], ['Garden tools', 'RAKE,HOE,SHEARS,TROWEL'], ['Card suits', 'HEART,SPADE,CLUB,DIAMOND']],
+  [['Pets', 'CAT,HAMSTER,RABBIT,GERBIL'], ['Hats', 'CAP,BERET,BEANIE,FEDORA'], ['Chinese zodiac', 'RAT,OX,TIGER,DRAGON'], ['Hot ___', 'DOG,SAUCE,POTATO,SPRING']],
+  [['Breads', 'BAGEL,BAGUETTE,PITA,NAAN'], ['Animals with manes', 'LION,PONY,ZEBRA,UNICORN'], ['Sea ___', 'SHELL,HORSE,WEED,URCHIN'], ['Things with a crust', 'PIZZA,PIE,EARTH,SANDWICH']],
+];
+let sort = null, lastMode = 'dive';
+const sortDailyDone = () => save.sortDaily && save.sortDaily.date === todayKey();
+const fmtTime = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+function startSort({ seed, daily, duel }) {
+  const r = rng(seed);
+  const pi = daily ? dayNumber(todayKey()) % SORT_PUZZLES.length : Math.floor(r() * SORT_PUZZLES.length);
+  const groups = SORT_PUZZLES[pi].map(([name, words], tier) => ({ name, tier, words: words.split(',') }));
+  const tiles = groups.flatMap(g => g.words);
+  for (let i = tiles.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; }
+  sort = { seed, daily, duel, pi, groups, tiles, sel: new Set(), solved: [], air: 4, guesses: [], tried: new Set(), sonar: false,
+           start: performance.now(), end: 0, done: false, won: false, shown: false,
+           opp: duel ? { found: [], air: 4, done: false, time: 0, mistakes: 0 } : null, countsAsDaily: daily && !sortDailyDone() };
+  game = null; lastMode = 'sort'; phase = 'sort';
+  $('sortFb').textContent = 'Pick 4 words that belong together.'; $('sortFb').style.color = '';
+  showScreen('sortWrap');
+  renderSort();
+  SFX.dive();
+}
+
+function renderSort() {
+  const s = sort;
+  $('sortTitle').textContent = s.daily ? `Daily Shoal Sort #${dayNumber(todayKey()) % 10000}` : s.duel ? 'Shoal Sort Duel' : 'Practice Puzzle';
+  $('sortAir').innerHTML = 'Air ' + [0, 1, 2, 3].map(i => `<span class="${i < s.air ? '' : 'gone'}">🫧</span>`).join('');
+  $('sortSolved').innerHTML = s.solved.map(g => {
+    const tc = SORT_TIERS[g.tier];
+    return `<div class="group t${g.tier}" style="background:${tc.col}"><b>${esc(g.name)}${g.revealed ? ' (missed)' : ''}</b><span>${g.words.map(esc).join(', ')}</span></div>`;
+  }).join('');
+  const board = $('sortBoard'); board.innerHTML = '';
+  for (const w of s.tiles) {
+    const b = document.createElement('button');
+    b.className = 'tile' + (s.sel.has(w) ? ' sel' : '') + (w.length > 9 ? ' long' : '');
+    b.textContent = w;
+    b.onclick = () => {
+      if (s.done) return;
+      if (s.sel.has(w)) s.sel.delete(w);
+      else if (s.sel.size < 4) { s.sel.add(w); SFX.bubble(); }
+      renderSort();
+    };
+    board.appendChild(b);
+  }
+  $('btnSubmit').disabled = s.done || s.sel.size !== 4;
+  $('btnSonar').disabled = s.done || s.sonar;
+  $('btnShuffle').disabled = $('btnClear').disabled = s.done;
+  const opp = $('sortOpp');
+  opp.classList.toggle('hidden', !s.duel);
+  if (s.duel) {
+    const o = s.opp, name = remote ? remote.name : 'Friend';
+    opp.innerHTML = `<b>${esc(name)}</b> ${o.found.map(t => SORT_TIERS[t].emoji).join('') || '—'} · ${'🫧'.repeat(Math.max(0, o.air))}${o.done ? ' ✓' : ''}`;
+  }
+}
+
+function sortFb(msg, col = '') { $('sortFb').textContent = msg; $('sortFb').style.color = col; }
+
+function submitSort() {
+  const s = sort;
+  if (!s || s.done || s.sel.size !== 4) return;
+  const pick = [...s.sel], key = pick.slice().sort().join('|');
+  if (s.tried.has(key)) { sortFb('You already tried those four!', '#ffd66b'); return; }
+  s.tried.add(key);
+  s.guesses.push(pick.map(w => s.groups.find(g => g.words.includes(w)).tier));
+  const hit = s.groups.find(g => !s.solved.includes(g) && pick.every(w => g.words.includes(w)));
+  if (hit) {
+    s.solved.push(hit);
+    s.tiles = s.tiles.filter(w => !hit.words.includes(w));
+    s.sel.clear();
+    sortFb(`${SORT_TIERS[hit.tier].name} group found! 🐟`, SORT_TIERS[hit.tier].col === '#14213d' ? '#ffd66b' : SORT_TIERS[hit.tier].col);
+    SFX.tier(hit.tier + 1);
+    burstBubbles(14 + hit.tier * 8);
+    if (s.solved.length === 4) finishSort(true);
+  } else {
+    s.air--;
+    SFX.wrong();
+    const b = $('sortBoard'); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+    sortFb(s.air > 0 ? `Not a group. ${s.air} air bubble${s.air === 1 ? '' : 's'} left!` : 'Out of air! 🫧', '#ff9ab0');
+    if (s.air <= 0) {
+      for (const g of s.groups) if (!s.solved.includes(g)) { g.revealed = true; s.solved.push(g); }
+      s.tiles = []; s.sel.clear();
+      finishSort(false);
+    }
+  }
+  sendSortProgress();
+  renderSort();
+}
+
+function sendSortProgress() {
+  const s = sort;
+  send({ t: 'sprog', sd: s.seed, found: s.solved.filter(g => !g.revealed).map(g => g.tier), air: s.air, done: s.done,
+         time: s.done ? (s.end - s.start) / 1000 : 0, mistakes: 4 - s.air });
+}
+
+function finishSort(won) {
+  const s = sort;
+  s.done = true; s.won = won; s.end = performance.now();
+  if (s.duel && online() && !s.opp.done) {
+    sortFb(`${won ? 'All sorted!' : 'Out of air!'} Waiting for ${remote.name} to finish…`, '#ffd66b');
+  } else {
+    setTimeout(showSortResults, 1300);
+  }
+}
+
+function sortScore(found, mistakes, time) { return found * 100000 - mistakes * 1000 - Math.min(999, time); }
+
+function showSortResults() {
+  const s = sort;
+  if (!s || s.shown) return;
+  s.shown = true; phase = 'end';
+  const found = s.solved.filter(g => !g.revealed).length, mistakes = 4 - s.air, time = (s.end - s.start) / 1000;
+  save.played++;
+  if (s.countsAsDaily) {
+    const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
+    save.sortStreak = save.sortLast === yesterday ? (save.sortStreak || 0) + 1 : 1;
+    save.sortLast = k;
+    save.sortDaily = { date: k, found, mistakes };
+  }
+  let title = s.won ? (mistakes === 0 ? 'Perfect sort! 🌟' : 'Shoal sorted! 🐠') : 'Out of air! 🫧';
+  let html = `<div class="stat"><span>Groups found</span><b>${found} / 4</b></div>`;
+  html += `<div class="stat"><span>Mistakes</span><b>${mistakes}</b></div>`;
+  html += `<div class="stat"><span>Time</span><b>${fmtTime(time)}</b></div>`;
+  if (s.duel) {
+    const o = s.opp, rn = remote ? remote.name : 'Friend';
+    html += `<div class="stat"><span>${esc(rn)}</span><b>${o.found.length} / 4 · ${o.mistakes} mistakes · ${fmtTime(o.time)}</b></div>`;
+    const me = sortScore(found, mistakes, time), them = sortScore(o.found.length, o.mistakes, o.time);
+    if (me > them) { wins.me++; save.duelWins++; title = 'You win! 🏆'; SFX.win(); }
+    else if (them > me) { wins.them++; title = rn + ' wins!'; SFX.lose(); }
+    else { title = "It's a tie!"; SFX.done(); }
+    html += `<div class="stat"><span>Duel score</span><b>You ${wins.me} – ${wins.them} ${esc(rn)}</b></div>`;
+  } else (s.won ? SFX.win : SFX.lose)();
+  if (s.countsAsDaily) html += `<div class="stat"><span>Shoal Sort streak</span><b>🔥 ${save.sortStreak}</b></div>`;
+  persist();
+  $('resTitle').textContent = title;
+  $('resGrid').textContent = s.guesses.map(row => row.map(t => SORT_TIERS[t].emoji).join('')).join('\n');
+  $('resStats').innerHTML = html;
+  $('btnAgain').textContent = s.duel ? 'Rematch (new puzzle)' : 'Practice puzzle';
+  $('btnAgain').disabled = s.duel && !online();
+  $('resStatus').textContent = s.duel && online() ? 'Either of you can start a rematch.' : '';
+  showScreen('results');
+}
+
+function sortShareText() {
+  const s = sort;
+  const label = s.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : s.duel ? 'Duel' : 'Practice';
+  const rows = s.guesses.map(row => row.map(t => SORT_TIERS[t].emoji).join('')).join('\n');
+  const m = 4 - s.air;
+  return `🐚 Shoal Sort ${label}\n${rows}\n${s.won ? 'Sorted' : 'Out of air'} · ${m} mistake${m === 1 ? '' : 's'}`;
+}
+
+$('btnSubmit').onclick = submitSort;
+$('btnClear').onclick = () => { if (sort) { sort.sel.clear(); renderSort(); } };
+$('btnShuffle').onclick = () => {
+  if (!sort) return;
+  const t = sort.tiles;
+  for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
+  SFX.bubbles(4); renderSort();
+};
+$('btnSonar').onclick = () => {
+  if (!sort || sort.sonar || sort.done) return;
+  sort.sonar = true;
+  const g = sort.groups.find(g => !sort.solved.includes(g));
+  sortFb('', ''); $('sortFb').innerHTML = `📡 Sonar ping: one group is <span class="hintname">${esc(g.name)}</span>`;
+  tone(1200, 0, .5, { vol: .1, slide: .98 }); tone(1200, .6, .4, { vol: .05 });
+  renderSort();
+};
+$('btnSortDaily').onclick = () => { if (!sortDailyDone()) { startSort({ seed: hashStr('sort' + todayKey()), daily: true, duel: false }); } };
+$('btnSortPractice').onclick = () => { startSort({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false }); };
 
 // ---------- networking (PeerJS, peer to peer) ----------
 let peer = null, conn = null, isHost = false, remote = null, useDailySet = true;
@@ -821,6 +1081,7 @@ function setupConn(c) {
     conn = null; remote = null;
     toast(name + ' disconnected');
     if (phase === 'ask') tryReveal();
+    if (phase === 'sort' && sort && sort.done) setTimeout(showSortResults, 500);
     if (!$('lobby').classList.contains('hidden')) { $('lobbyStatus').textContent = isHost ? 'Friend left. Waiting for someone to join…' : 'Host left.'; $('btnStart').disabled = true; }
     if (phase === 'end') $('btnAgain').disabled = game && game.duel;
   });
@@ -837,7 +1098,12 @@ function onData(d) {
   } else if (d.t === 'look' && remote) {
     remote.look = cleanLook(d.look);
   } else if (d.t === 'start') {
-    startGame({ seed: d.seed, daily: d.daily, duel: true });
+    if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true });
+    else startGame({ seed: d.seed, daily: d.daily, duel: true });
+  } else if (d.t === 'sprog' && sort && sort.duel && d.sd === sort.seed) {
+    Object.assign(sort.opp, { found: (d.found || []).map(t => t | 0), air: d.air | 0, done: !!d.done, time: +d.time || 0, mistakes: d.mistakes | 0 });
+    if (phase === 'sort') renderSort();
+    if (sort.opp.done && sort.done) setTimeout(showSortResults, 900);
   } else if (d.t === 'lock' && game && d.sd === game.seed) {
     game.oppLocks[d.q] = { canon: d.canon, tier: d.tier | 0 };
     if (d.q === game.i) tryReveal();
@@ -848,14 +1114,27 @@ function leaveNet() {
   if (peer) { try { peer.destroy(); } catch (e) {} }
   conn = null; peer = null; remote = null;
 }
-function startDuel(daily) {
+let lobbyGame = 'dive';
+function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
-  send({ t: 'start', seed, daily });
-  startGame({ seed, daily, duel: true });
+  send({ t: 'start', seed, daily, game: which });
+  if (which === 'sort') startSort({ seed, daily, duel: true });
+  else startGame({ seed, daily, duel: true });
 }
+function pickLobbyGame(which) {
+  lobbyGame = which;
+  $('gameDive').classList.toggle('on', which === 'dive'); $('gameSort').classList.toggle('on', which === 'sort');
+  $('setDaily').textContent = which === 'sort' ? "Today's puzzle" : "Today's set";
+  $('setRandom').textContent = which === 'sort' ? 'Random puzzle' : 'Random set';
+  $('lobbyHelp').innerHTML = which === 'sort'
+    ? 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>'
+    : 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>';
+}
+$('gameDive').onclick = () => pickLobbyGame('dive');
+$('gameSort').onclick = () => pickLobbyGame('sort');
 
 // ---------- menus ----------
-const screens = ['menu', 'lobby', 'qWrap', 'results', 'custom'];
+const screens = ['menu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap'];
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -905,6 +1184,9 @@ let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
 function refreshMenu() {
+  const sd = sortDailyDone();
+  $('btnSortDaily').textContent = sd ? `Done ✓ ${save.sortDaily.found}/4` : "Today's Puzzle";
+  $('btnSortDaily').disabled = sd;
   const done = dailyDone();
   $('btnDaily').textContent = done ? `Today's dive done: ${(save.daily.pts * M_PER_PT).toLocaleString()} m ✓` : "Today's Dive";
   $('btnDaily').disabled = done;
@@ -924,7 +1206,11 @@ $('setDaily').onclick = () => { useDailySet = true; $('setDaily').classList.add(
 $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.add('on'); $('setDaily').classList.remove('on'); };
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); showScreen('menu'); };
-$('btnAgain').onclick = () => { if (game && game.duel) { if (online()) startDuel(false); } else $('btnPractice').onclick(); };
+$('btnAgain').onclick = () => {
+  const duel = lastMode === 'sort' ? sort && sort.duel : game && game.duel;
+  if (duel) { if (online()) startDuel(false, lastMode); }
+  else (lastMode === 'sort' ? $('btnSortPractice') : $('btnPractice')).onclick();
+};
 $('btnResMenu').onclick = () => { leaveNet(); game = null; showScreen('menu'); };
 refreshMenu();
 
@@ -1298,6 +1584,8 @@ function loop(now) {
     lastSecs = secs;
     $('qTime').textContent = secs + 's';
     if (qTimer <= 0) lockIn(null);
+  } else if (phase === 'sort' && sort && !sort.done) {
+    $('sortTime').textContent = fmtTime((performance.now() - sort.start) / 1000);
   } else if (phase === 'reveal') {
     revealTimer -= dt;
     if (revealTimer <= 0) { game.i++; askQuestion(); }
