@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Krill Dive</title>
+<title>The Deep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -61,7 +61,15 @@
   input[type=range] { padding:0; border:none; background:none; accent-color:var(--cyan); height:28px; }
   .vol { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
   .vol span { width:40px; text-align:right; }
-  #menu, #lobby, #results, #custom, #settings { background:radial-gradient(ellipse at center, rgba(4,16,31,.25), rgba(4,16,31,.75)); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .card { display:flex; align-items:center; gap:14px; text-align:left; padding:16px; margin-top:12px; background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:16px; }
+  .card:hover { background:rgba(90,209,255,.12); border-color:var(--cyan); filter:none; }
+  .cicon { font-size:44px; line-height:1; flex:none; }
+  .ctext { display:flex; flex-direction:column; gap:2px; }
+  .ctext b { font-size:22px; }
+  .ctext small { font-size:14px; font-weight:400; color:var(--muted); }
+  .ctext em { font-size:13px; font-style:normal; color:var(--gold); min-height:16px; }
+  button.back { margin-top:16px; }
+  #menu, #lobby, #results, #custom, #settings, #hub, #sortMenu { background:radial-gradient(ellipse at center, rgba(4,16,31,.25), rgba(4,16,31,.75)); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
   .hidden { display:none !important; }
   .panel { width:100%; max-width:460px; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 20px 60px rgba(0,0,0,.5); max-height:calc(100vh - 32px); overflow:auto; backdrop-filter:blur(4px); }
   h1 { margin:0; font-size:46px; text-align:center; line-height:1; }
@@ -114,7 +122,7 @@
 <body>
 <canvas id="c"></canvas>
 
-<div id="menu" class="overlay">
+<div id="menu" class="overlay hidden">
   <div class="panel">
     <h1>KRILL <span>DIVE</span></h1>
     <div class="tag">Name the answers nobody else thinks of.<br>The rarer your answer, the deeper you sink.</div>
@@ -122,12 +130,6 @@
     <input id="name" maxlength="12">
     <button class="coral" id="btnDaily">Today's Dive</button>
     <button class="ghost" id="btnPractice">Practice Dive</button>
-    <div class="divider">— 🐚 Shoal Sort: find the 4 hidden groups —</div>
-    <div class="row">
-      <button class="coral" id="btnSortDaily">Today's Puzzle</button>
-      <button class="ghost" id="btnSortPractice">Practice</button>
-    </div>
-    <div class="divider">— your krill —</div>
     <button class="ghost" id="btnCustom">🎨 Customise Krill</button>
     <div class="divider">— duel a friend —</div>
     <button id="btnHost">Host Duel</button>
@@ -137,6 +139,43 @@
     </div>
     <div class="status" id="menuStatus"></div>
     <div class="help" id="menuStats"></div>
+    <button class="ghost back" id="btnDiveHub">← All games</button>
+  </div>
+</div>
+
+<div id="hub" class="overlay">
+  <div class="panel hubpanel">
+    <h1>THE <span>DEEP</span></h1>
+    <div class="tag">Pick a game to dive into</div>
+    <label for="hubName">Your name</label>
+    <input id="hubName" maxlength="12">
+    <button class="card" id="cardDive">
+      <span class="cicon">🦐</span>
+      <span class="ctext"><b>Krill Dive</b><small>Name the rarest answers to sink deepest</small><em id="hubDiveStatus"></em></span>
+    </button>
+    <button class="card" id="cardSort">
+      <span class="cicon">🐚</span>
+      <span class="ctext"><b>Shoal Sort</b><small>Find the 4 hidden groups of 4 words</small><em id="hubSortStatus"></em></span>
+    </button>
+    <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
+  </div>
+</div>
+
+<div id="sortMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>SHOAL <span>SORT</span></h1>
+    <div class="tag">16 words, 4 hidden groups.<br>Find them all before your air runs out.</div>
+    <button class="coral" id="btnSortDaily">Today's Puzzle</button>
+    <button class="ghost" id="btnSortPractice">Practice Puzzle</button>
+    <div class="divider">— duel a friend —</div>
+    <button id="btnSortHost">Host Duel</button>
+    <div class="row">
+      <div style="flex:1.4"><label for="sortJoinCode">Friend's code</label><input id="sortJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
+      <button id="btnSortJoin">Join</button>
+    </div>
+    <div class="status" id="sortStatus"></div>
+    <div class="help" id="sortStats"></div>
+    <button class="ghost back" id="btnSortHub">← All games</button>
   </div>
 </div>
 
@@ -161,8 +200,6 @@
       <div class="code" id="codeText">····</div>
     </div>
     <div id="setBox">
-      <label>Game</label>
-      <div class="seg"><button id="gameDive" class="on">🦐 Krill Dive</button><button id="gameSort">🐚 Shoal Sort</button></div>
       <label>Questions</label>
       <div class="seg"><button id="setDaily" class="on">Today's set</button><button id="setRandom">Random set</button></div>
     </div>
@@ -687,7 +724,7 @@ let shownDepth = 0, oppShownDepth = 0;
 function startGame({ seed, daily, duel }) {
   game = { seed, daily, duel, cats: pickCats(seed), i: 0, total: 0, oppTotal: 0, mine: [], theirs: [], oppLocks: {}, locked: null, tries: [], countsAsDaily: daily && !dailyDone() };
   shownDepth = 0; oppShownDepth = 0;
-  lastMode = 'dive';
+  lastMode = 'dive'; currentGame = 'dive';
   SFX.dive();
   showScreen('qWrap');
   askQuestion();
@@ -878,7 +915,7 @@ function startSort({ seed, daily, duel }) {
   sort = { seed, daily, duel, pi, groups, tiles, sel: new Set(), solved: [], air: 4, guesses: [], tried: new Set(), sonar: false,
            start: performance.now(), end: 0, done: false, won: false, shown: false,
            opp: duel ? { found: [], air: 4, done: false, time: 0, mistakes: 0 } : null, countsAsDaily: daily && !sortDailyDone() };
-  game = null; lastMode = 'sort'; phase = 'sort';
+  game = null; lastMode = 'sort'; currentGame = 'sort'; phase = 'sort';
   $('sortFb').textContent = 'Pick 4 words that belong together.'; $('sortFb').style.color = '';
   showScreen('sortWrap');
   renderSort();
@@ -1041,7 +1078,7 @@ function send(m) { if (conn && conn.open) { try { conn.send(m); } catch (e) {} }
 function online() { return !!(conn && conn.open && remote); }
 
 function hostGame() {
-  if (typeof Peer === 'undefined') { $('menuStatus').textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
+  if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
   isHost = true;
   const code = genCode();
@@ -1049,6 +1086,7 @@ function hostGame() {
   $('lobbyTitle').textContent = 'Hosting a duel';
   $('codeBox').classList.remove('hidden'); $('setBox').classList.remove('hidden');
   $('codeText').textContent = '····';
+  pickLobbyGame(currentGame);
   $('lobbyStatus').textContent = 'Connecting…';
   $('btnStart').disabled = true; $('btnStart').classList.remove('hidden');
   peer = new Peer(PREFIX + code);
@@ -1058,13 +1096,14 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $('joinCode').value.trim().toUpperCase();
-  if (code.length !== 4) { $('menuStatus').textContent = 'Type the 4-letter code your friend sees.'; return; }
-  if (typeof Peer === 'undefined') { $('menuStatus').textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
+  const code = $(currentGame === 'sort' ? 'sortJoinCode' : 'joinCode').value.trim().toUpperCase();
+  if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
+  if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
   isHost = false;
   showScreen('lobby');
   $('lobbyTitle').textContent = 'Joining ' + code;
+  pickLobbyGame(currentGame);
   $('codeBox').classList.add('hidden'); $('setBox').classList.add('hidden');
   $('btnStart').classList.add('hidden');
   $('lobbyStatus').textContent = 'Connecting…';
@@ -1123,18 +1162,19 @@ function startDuel(daily, which = lobbyGame) {
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  $('gameDive').classList.toggle('on', which === 'dive'); $('gameSort').classList.toggle('on', which === 'sort');
+  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, which === 'sort' ? 'Hosting a Shoal Sort duel' : 'Hosting a Krill Dive duel');
   $('setDaily').textContent = which === 'sort' ? "Today's puzzle" : "Today's set";
   $('setRandom').textContent = which === 'sort' ? 'Random puzzle' : 'Random set';
   $('lobbyHelp').innerHTML = which === 'sort'
     ? 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>'
     : 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>';
 }
-$('gameDive').onclick = () => pickLobbyGame('dive');
-$('gameSort').onclick = () => pickLobbyGame('sort');
 
 // ---------- menus ----------
-const screens = ['menu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap'];
+let currentGame = 'dive'; // which game's menu "back" returns to
+const menuStatusId = () => currentGame === 'sort' ? 'sortStatus' : 'menuStatus';
+const goHome = () => showScreen(currentGame === 'sort' ? 'sortMenu' : 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -1179,7 +1219,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (name === 'menu') { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (name === 'menu' || name === 'sortMenu' || name === 'hub') { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
@@ -1187,6 +1227,12 @@ function refreshMenu() {
   const sd = sortDailyDone();
   $('btnSortDaily').textContent = sd ? `Done ✓ ${save.sortDaily.found}/4` : "Today's Puzzle";
   $('btnSortDaily').disabled = sd;
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const sortStreak = save.sortLast === todayKey() || save.sortLast === yest ? save.sortStreak || 0 : 0;
+  $('sortStats').innerHTML = `🔥 Streak ${sortStreak} · ${SORT_PUZZLES.length} puzzles<br>` +
+    SORT_TIERS.map(t => `${t.emoji} ${t.name}`).join(' · ') + '<br>📡 Sonar reveals one group name (once per puzzle)';
+  $('hubDiveStatus').textContent = dailyDone() ? `✓ Today's dive: ${(save.daily.pts * M_PER_PT).toLocaleString()} m` : "🌊 Today's dive is ready!";
+  $('hubSortStatus').textContent = sd ? `✓ Today's puzzle: ${save.sortDaily.found}/4 groups` : "🌊 Today's puzzle is ready!";
   const done = dailyDone();
   $('btnDaily').textContent = done ? `Today's dive done: ${(save.daily.pts * M_PER_PT).toLocaleString()} m ✓` : "Today's Dive";
   $('btnDaily').disabled = done;
@@ -1195,8 +1241,19 @@ function refreshMenu() {
   $('menuStats').innerHTML = `🔥 Streak ${save.lastDaily && (save.lastDaily === todayKey() || save.lastDaily === new Date(Date.now() - 86400000).toISOString().slice(0, 10)) ? save.streak : 0} · Best ${save.best.toLocaleString()} m${hrs}<br>` +
     `${TIER_EMOJI[1]} Common ${TIER_PTS[1]} · ${TIER_EMOJI[2]} Uncommon ${TIER_PTS[2]} · ${TIER_EMOJI[3]} Rare ${TIER_PTS[3]} · ${TIER_EMOJI[4]} Deep cut ${TIER_PTS[4]}`;
 }
-$('name').value = save.name;
-$('name').addEventListener('input', () => { save.name = $('name').value.trim().slice(0, 12) || 'Krill'; persist(); });
+for (const id of ['name', 'hubName']) {
+  $(id).value = save.name;
+  $(id).addEventListener('input', () => {
+    save.name = $(id).value.trim().slice(0, 12) || 'Krill'; persist();
+    for (const other of ['name', 'hubName']) if (other !== id) $(other).value = $(id).value;
+  });
+}
+$('cardDive').onclick = () => { currentGame = 'dive'; showScreen('menu'); };
+$('cardSort').onclick = () => { currentGame = 'sort'; showScreen('sortMenu'); };
+$('btnDiveHub').onclick = $('btnSortHub').onclick = () => { leaveNet(); showScreen('hub'); };
+$('btnSortHost').onclick = hostGame;
+$('btnSortJoin').onclick = joinGame;
+$('sortJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
 $('btnDaily').onclick = () => { if (!dailyDone()) startGame({ seed: hashStr(todayKey()), daily: true, duel: false }); };
 $('btnPractice').onclick = () => startGame({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false });
 $('btnHost').onclick = hostGame;
@@ -1205,13 +1262,13 @@ $('joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame
 $('setDaily').onclick = () => { useDailySet = true; $('setDaily').classList.add('on'); $('setRandom').classList.remove('on'); };
 $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.add('on'); $('setDaily').classList.remove('on'); };
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
-$('btnLeave').onclick = () => { leaveNet(); showScreen('menu'); };
+$('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
   const duel = lastMode === 'sort' ? sort && sort.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
   else (lastMode === 'sort' ? $('btnSortPractice') : $('btnPractice')).onclick();
 };
-$('btnResMenu').onclick = () => { leaveNet(); game = null; showScreen('menu'); };
+$('btnResMenu').onclick = () => { leaveNet(); game = null; goHome(); };
 refreshMenu();
 
 // =====================================================================
