@@ -12,6 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <style>
   :root { --ink:#eaf6ff; --muted:#8fb3cc; --panel:rgba(6,20,40,.86); --line:rgba(140,200,255,.22); --coral:#ff7a59; --cyan:#5ad1ff; --gold:#ffd66b;
           --t0:#556677; --t1:#5aa9ff; --t2:#5fe08a; --t3:#ffd66b; --t4:#c58bff; }
@@ -56,6 +58,37 @@
   .sortbtns { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:6px; }
   .sortbtns button { margin:0; padding:10px 4px; font-size:15px; }
   .hintname { color:var(--gold); font-weight:600; }
+  /* Drift */
+  #geoWrap { position:fixed; left:0; right:0; top:var(--vvt, 0px); height:var(--vvh, 100%); display:flex; flex-direction:column; gap:8px;
+             padding:max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  #geoWrap.hidden { display:none; }
+  .geoside { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; max-height:46%; overflow:auto; flex:none; padding-right:64px; }
+  .geophoto { position:relative; border-radius:12px; overflow:hidden; background:rgba(255,255,255,.05); min-height:120px; display:flex; align-items:center; justify-content:center; margin-top:8px; }
+  .geophoto img { width:100%; max-height:30vh; object-fit:cover; display:block; }
+  #geoImgMsg { color:var(--muted); padding:20px; text-align:center; }
+  .clue { display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.06); margin-top:6px; font-size:15px; animation:pop .3s; }
+  .clue > span { font-size:20px; }
+  .clue small { display:block; color:var(--muted); font-size:12px; }
+  .flag { height:28px; border-radius:4px; box-shadow:0 0 0 1px rgba(255,255,255,.2); display:block; }
+  .geomax { color:var(--gold); font-size:13px; margin-top:6px; }
+  .geomap { position:relative; flex:1; min-height:160px; border-radius:16px; overflow:hidden; border:1px solid var(--line); background:#0a2440; touch-action:none; }
+  .geomap svg { display:block; position:absolute; inset:0; cursor:crosshair; }
+  .geohint { position:absolute; left:8px; right:8px; bottom:8px; text-align:center; font-size:13px; color:var(--ink); pointer-events:none; text-shadow:0 1px 3px #000; }
+  .sea { fill:#0e3a66; } .grat { fill:none; stroke:rgba(255,255,255,.06); vector-effect:non-scaling-stroke; }
+  .land { fill:#3f8a6e; stroke:none; } .border { fill:none; stroke:rgba(4,16,31,.55); stroke-width:.6; vector-effect:non-scaling-stroke; }
+  .pin { stroke:#fff; } .pin.me { fill:var(--coral); } .pin.opp { fill:var(--cyan); } .pin.ans { fill:var(--gold); }
+  .gline { fill:none; } .gline.me { stroke:var(--coral); } .gline.opp { stroke:var(--cyan); }
+  .geobar { display:flex; gap:8px; flex:none; }
+  .geobar button { margin:0; }
+  .georeveal { position:fixed; left:50%; bottom:max(16px, env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(440px, calc(100% - 24px)); z-index:20; }
+  .geoans { display:flex; align-items:center; gap:12px; margin:8px 0 4px; }
+  .geoans b { font-size:22px; display:block; } .geoans small { color:var(--muted); }
+  @media (min-width:900px) {
+    #geoWrap { display:grid; grid-template-columns:minmax(300px, 34%) 1fr; grid-template-rows:1fr auto; }
+    .geoside { grid-row:1 / 3; max-height:none; padding-right:12px; }
+    .geophoto img { max-height:40vh; }
+    .geobar { grid-column:2; }
+  }
   #gear { position:fixed; top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right)); width:46px; height:46px; margin:0; padding:0; border-radius:50%; font-size:22px; background:rgba(0,0,0,.35); color:#fff; border:1px solid var(--line); z-index:25; }
   #settings { z-index:30; }
   .set-row { display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px; font-size:19px; font-weight:600; }
@@ -175,6 +208,10 @@
       <span class="cicon">🐚</span>
       <span class="ctext"><b>Shoal Sort</b><small>Find the 4 hidden groups of 4 words</small><em id="hubSortStatus"></em></span>
     </button>
+    <button class="card" id="cardGeo">
+      <span class="cicon">🌍</span>
+      <span class="ctext"><b>Drift</b><small>Your krill drifted off. Find where in the world it is!</small><em id="hubGeoStatus"></em></span>
+    </button>
     <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
   </div>
 </div>
@@ -240,6 +277,36 @@
     </div>
     <div id="qReveal" class="reveal hidden"></div>
   </div>
+</div>
+
+<div id="geoMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>DR<span>IFT</span></h1>
+    <div class="tag">Your krill has drifted somewhere in the world.<br>Use the photo and clues, then tap the map to find it.</div>
+    <button class="coral" id="btnGeoDaily">Today's Trip</button>
+    <button class="ghost" id="btnGeoPractice">Practice Trip</button>
+    <div class="divider">— duel a friend —</div>
+    <button id="btnGeoHost">Host Duel</button>
+    <div class="row">
+      <div style="flex:1.4"><label for="geoJoinCode">Friend's code</label><input id="geoJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
+      <button id="btnGeoJoin">Join</button>
+    </div>
+    <div class="status" id="geoStatus"></div>
+    <div class="help" id="geoStats"></div>
+    <button class="ghost back" id="btnGeoHub">← All games</button>
+  </div>
+</div>
+
+<div id="geoWrap" class="hidden">
+  <div class="geoside">
+    <div class="qhead"><span id="geoRound">Place 1 / 5</span><span id="geoScore">0 pts</span></div>
+    <div class="geophoto"><img id="geoImg" class="hidden" alt="Where is this?"><div id="geoImgMsg">Loading photo…</div></div>
+    <div id="geoClues"></div>
+    <div class="geomax" id="geoMax"></div>
+  </div>
+  <div class="geomap" id="geoMap"><svg id="geoSvg"></svg><div class="geohint" id="geoHint"></div></div>
+  <div class="geobar"><button class="ghost" id="btnClue">💡 Clue</button><button class="coral" id="btnGuess" disabled>📍 Guess</button></div>
+  <div class="panel georeveal hidden" id="geoRevealBox"></div>
 </div>
 
 <div id="sortWrap" class="overlay hidden">
@@ -1116,7 +1183,7 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = lastMode === 'sort' ? sortShareText() : shareText();
+  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' ? geoShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
@@ -1435,6 +1502,403 @@ if (window.visualViewport) { visualViewport.addEventListener('resize', fitViewpo
 fitViewport();
 $('qInput').addEventListener('focus', () => setTimeout(() => { fitViewport(); $('qInput').scrollIntoView({ block: 'nearest' }); }, 250));
 
+// =====================================================================
+//  Drift: your krill drifted somewhere in the world - find it on the map
+// =====================================================================
+// [place, country, flag code, lat, lon, Wikipedia article for the photo, language, known for, fun fact]
+const PLACES = [
+  ['Paris', 'France', 'fr', 48.857, 2.352, 'Paris', 'French', 'Croissants, baguettes and fancy pastries', 'A giant iron tower was built here for a world fair in 1889'],
+  ['London', 'United Kingdom', 'gb', 51.507, -0.128, 'London', 'English', 'Fish and chips and afternoon tea', 'Its underground railway is the oldest in the world'],
+  ['Rome', 'Italy', 'it', 41.903, 12.496, 'Rome', 'Italian', 'Pasta carbonara and gelato', 'A whole separate country sits inside this city'],
+  ['Barcelona', 'Spain', 'es', 41.385, 2.173, 'Barcelona', 'Catalan and Spanish', 'Tapas and paella', 'A famous church here has been under construction since 1882'],
+  ['Amsterdam', 'Netherlands', 'nl', 52.373, 4.893, 'Dam Square', 'Dutch', 'Stroopwafels and cheese', 'There are more bikes than people, and many end up in the canals'],
+  ['Berlin', 'Germany', 'de', 52.520, 13.405, 'Berlin', 'German', 'Currywurst and pretzels', 'A wall split this city in two until 1989'],
+  ['Venice', 'Italy', 'it', 45.441, 12.316, 'Venice', 'Italian', 'Gondolas and glass-blowing', 'The city is built on over 100 small islands with canals for streets'],
+  ['Athens', 'Greece', 'gr', 37.984, 23.728, 'Athens', 'Greek', 'Souvlaki and feta cheese', 'Democracy and the Olympic Games both started near here'],
+  ['Istanbul', 'Turkey', 'tr', 41.008, 28.978, 'Istanbul', 'Turkish', 'Kebabs and Turkish delight', 'This city sits on two continents at once'],
+  ['Reykjavik', 'Iceland', 'is', 64.147, -21.943, 'Reykjavík', 'Icelandic', 'Hot springs and the northern lights', 'The most northern capital city in the world'],
+  ['Oslo', 'Norway', 'no', 59.914, 10.752, 'Oslo', 'Norwegian', 'Brown cheese and Viking ships', 'The Nobel Peace Prize is handed out here'],
+  ['Stockholm', 'Sweden', 'se', 59.329, 18.069, 'Stockholm', 'Swedish', 'Meatballs and cinnamon buns', 'The city is spread across 14 islands'],
+  ['Helsinki', 'Finland', 'fi', 60.170, 24.938, 'Helsinki', 'Finnish and Swedish', 'Saunas and rye bread', 'The country has more saunas than cars'],
+  ['Copenhagen', 'Denmark', 'dk', 55.676, 12.568, 'Copenhagen', 'Danish', 'Pastries and open sandwiches', 'LEGO was invented in this country'],
+  ['Dublin', 'Ireland', 'ie', 53.350, -6.260, 'Dublin', 'English and Irish', 'Irish stew and soda bread', 'Halloween traces back to an ancient festival from this country'],
+  ['Edinburgh', 'United Kingdom', 'gb', 55.953, -3.188, 'Edinburgh', 'English and Scots', 'Haggis and shortbread', 'A castle sits on top of an old volcano in the middle of the city'],
+  ['Lisbon', 'Portugal', 'pt', 38.722, -9.139, 'Lisbon', 'Portuguese', 'Custard tarts', 'Yellow trams climb its very steep hills'],
+  ['Prague', 'Czech Republic', 'cz', 50.076, 14.438, 'Prague', 'Czech', 'Dumplings and goulash', 'Its astronomical clock is over 600 years old'],
+  ['Vienna', 'Austria', 'at', 48.208, 16.373, 'Vienna', 'German', 'Schnitzel and chocolate cake', 'Mozart and Beethoven both lived and worked here'],
+  ['Moscow', 'Russia', 'ru', 55.756, 37.617, 'Moscow', 'Russian', 'Borscht and blini', 'A cathedral here has colourful onion-shaped domes'],
+  ['Kyiv', 'Ukraine', 'ua', 50.450, 30.523, 'Kyiv', 'Ukrainian', 'Borscht and varenyky dumplings', 'One of its metro stations is among the deepest in the world'],
+  ['Warsaw', 'Poland', 'pl', 52.230, 21.012, 'Warsaw', 'Polish', 'Pierogi dumplings', 'Its old town was rebuilt brick by brick after the war'],
+  ['Budapest', 'Hungary', 'hu', 47.498, 19.040, 'Budapest', 'Hungarian', 'Goulash and paprika', 'It used to be two cities on either side of a river'],
+  ['Dubrovnik', 'Croatia', 'hr', 42.651, 18.094, 'Dubrovnik', 'Croatian', 'Seafood and old stone walls', 'Scenes from a famous dragon TV show were filmed here'],
+  ['Zurich', 'Switzerland', 'ch', 47.377, 8.541, 'Zürich', 'German', 'Chocolate, cheese fondue and watches', 'The country has four official languages'],
+  ['Monaco', 'Monaco', 'mc', 43.738, 7.425, 'Monte Carlo', 'French', 'Casinos and a Formula 1 race', 'The second smallest country in the world'],
+  ['Santorini', 'Greece', 'gr', 36.461, 25.376, 'Oia, Greece', 'Greek', 'White houses with blue domes', 'This island is what is left of a huge volcano'],
+  ['Cairo', 'Egypt', 'eg', 30.044, 31.236, 'Cairo', 'Arabic', 'Falafel and koshari', 'Huge stone tombs for kings stand just outside the city'],
+  ['Marrakesh', 'Morocco', 'ma', 31.629, -7.981, 'Marrakesh', 'Arabic and Berber', 'Tagine and mint tea', 'Its main square fills with snake charmers and food stalls'],
+  ['Cape Town', 'South Africa', 'za', -33.925, 18.424, 'Cape Town', 'English, Afrikaans and Xhosa', 'Braai barbecues', 'A mountain with a flat top towers over the city'],
+  ['Nairobi', 'Kenya', 'ke', -1.292, 36.822, 'Nairobi', 'Swahili and English', 'Nyama choma grilled meat', 'There is a national park with lions right next to the city'],
+  ['Lagos', 'Nigeria', 'ng', 6.524, 3.379, 'Lagos', 'English and Yoruba', 'Jollof rice', 'One of the fastest-growing cities in the world'],
+  ['Accra', 'Ghana', 'gh', 5.604, -0.187, 'Accra', 'English and Twi', 'Fufu and jollof', 'Some people here are buried in coffins shaped like fish or cars'],
+  ['Addis Ababa', 'Ethiopia', 'et', 9.030, 38.740, 'Addis Ababa', 'Amharic', 'Injera flatbread', 'This country has its own calendar with 13 months'],
+  ['Zanzibar', 'Tanzania', 'tz', -6.165, 39.202, 'Stone Town', 'Swahili', 'Spices like cloves', 'Freddie Mercury was born on this island'],
+  ['Victoria Falls', 'Zimbabwe', 'zw', -17.925, 25.857, 'Victoria Falls', 'English and Shona', 'A giant waterfall called the Smoke that Thunders', 'You can swim at the very edge of the falls in a natural pool'],
+  ['Dakar', 'Senegal', 'sn', 14.716, -17.467, 'Dakar', 'French and Wolof', 'Thieboudienne fish and rice', 'The most western city on the African mainland'],
+  ['Madagascar', 'Madagascar', 'mg', -18.879, 47.508, 'Antananarivo', 'Malagasy and French', 'Lemurs and baobab trees', 'Most of the animals here live nowhere else on Earth'],
+  ['Tunis', 'Tunisia', 'tn', 36.807, 10.182, 'Tunis', 'Arabic', 'Couscous and harissa', 'Ruins of ancient Carthage are nearby'],
+  ['Tokyo', 'Japan', 'jp', 35.676, 139.650, 'Tokyo', 'Japanese', 'Sushi and ramen', 'The biggest city in the world by population'],
+  ['Kyoto', 'Japan', 'jp', 35.012, 135.768, 'Kyoto', 'Japanese', 'Matcha tea and temples', 'It has around 1,600 Buddhist temples'],
+  ['Seoul', 'South Korea', 'kr', 37.567, 126.978, 'Seoul', 'Korean', 'Kimchi and Korean BBQ', 'K-pop bands like BTS come from here'],
+  ['Beijing', 'China', 'cn', 39.904, 116.407, 'Beijing', 'Mandarin Chinese', 'Peking duck', 'A huge palace here was once closed to ordinary people'],
+  ['Shanghai', 'China', 'cn', 31.230, 121.474, 'Shanghai', 'Mandarin Chinese', 'Soup dumplings', 'It has the busiest container port in the world'],
+  ['Hong Kong', 'China', 'hk', 22.320, 114.149, 'Victoria Peak', 'Cantonese and English', 'Dim sum', 'It has more skyscrapers than any other city'],
+  ['Bangkok', 'Thailand', 'th', 13.756, 100.502, 'Bangkok', 'Thai', 'Pad thai and mango sticky rice', 'Its full official name is one of the longest place names in the world'],
+  ['Singapore', 'Singapore', 'sg', 1.283, 103.859, 'Marina Bay, Singapore', 'English, Malay, Mandarin and Tamil', 'Chilli crab and hawker food', 'Chewing gum sales are banned here'],
+  ['Hanoi', 'Vietnam', 'vn', 21.028, 105.854, 'Hanoi', 'Vietnamese', 'Pho noodle soup', 'Millions of motorbikes fill its streets'],
+  ['Bali', 'Indonesia', 'id', -8.507, 115.263, 'Ubud', 'Indonesian and Balinese', 'Rice terraces and temples', 'Each year there is a day of total silence where nobody goes out'],
+  ['Manila', 'Philippines', 'ph', 14.599, 120.984, 'Manila', 'Filipino and English', 'Adobo and jeepneys', 'The country is made of over 7,000 islands'],
+  ['Kuala Lumpur', 'Malaysia', 'my', 3.139, 101.687, 'Kuala Lumpur', 'Malay', 'Nasi lemak', 'Twin towers here were once the tallest buildings in the world'],
+  ['Mumbai', 'India', 'in', 19.076, 72.878, 'Mumbai', 'Marathi and Hindi', 'Vada pav and Bollywood films', 'More films are made here than in Hollywood'],
+  ['Delhi', 'India', 'in', 28.614, 77.209, 'Delhi', 'Hindi', 'Butter chicken', 'A famous white marble tomb is a few hours away'],
+  ['Agra', 'India', 'in', 27.175, 78.042, 'Taj Mahal', 'Hindi', 'A white marble monument to love', 'It took around 20,000 workers to build'],
+  ['Kathmandu', 'Nepal', 'np', 27.717, 85.324, 'Kathmandu', 'Nepali', 'Momo dumplings', 'The tallest mountain in the world is in this country'],
+  ['Colombo', 'Sri Lanka', 'lk', 6.927, 79.861, 'Colombo', 'Sinhala and Tamil', 'Tea and curry', 'This island is shaped like a teardrop'],
+  ['Dubai', 'United Arab Emirates', 'ae', 25.205, 55.271, 'Dubai', 'Arabic', 'Shopping and desert safaris', 'The tallest building in the world is here'],
+  ['Petra', 'Jordan', 'jo', 30.329, 35.444, 'Petra', 'Arabic', 'A city carved into pink rock', 'It appeared in an Indiana Jones movie'],
+  ['Jerusalem', 'Israel', 'il', 31.778, 35.235, 'Jerusalem', 'Hebrew and Arabic', 'Hummus and falafel', 'It is a holy city for three major religions'],
+  ['Tehran', 'Iran', 'ir', 35.689, 51.389, 'Tehran', 'Persian', 'Kebabs with saffron rice', 'Snowy mountains rise right behind the city'],
+  ['Ulaanbaatar', 'Mongolia', 'mn', 47.886, 106.906, 'Ulaanbaatar', 'Mongolian', 'Yurts and horse riding', 'The coldest capital city in the world'],
+  ['Samarkand', 'Uzbekistan', 'uz', 39.654, 66.976, 'Samarkand', 'Uzbek', 'Plov rice and blue-tiled buildings', 'It was a big stop on the Silk Road'],
+  ['Sydney', 'Australia', 'au', -33.869, 151.209, 'Sydney', 'English', 'Beaches and barbecues', 'Its opera house looks like a set of sails'],
+  ['Melbourne', 'Australia', 'au', -37.814, 144.963, 'Melbourne', 'English', 'Coffee and Aussie rules football', 'It has the biggest tram network in the world'],
+  ['Uluru', 'Australia', 'au', -25.345, 131.036, 'Uluru', 'English and Pitjantjatjara', 'A giant red rock in the desert', 'The rock seems to change colour at sunset'],
+  ['Auckland', 'New Zealand', 'nz', -36.849, 174.763, 'Auckland', 'English and Maori', 'Pavlova and kiwifruit', 'The city is built on about 50 old volcanoes'],
+  ['Queenstown', 'New Zealand', 'nz', -45.031, 168.663, 'Queenstown, New Zealand', 'English and Maori', 'Bungee jumping', 'The first commercial bungee jump was done here'],
+  ['Fiji', 'Fiji', 'fj', -18.141, 178.442, 'Suva', 'English and Fijian', 'Coral reefs and palm beaches', 'It is made of over 300 islands in the Pacific'],
+  ['Honolulu', 'United States', 'us', 21.307, -157.858, 'Honolulu', 'English and Hawaiian', 'Surfing and poke bowls', 'It is on an island in the middle of the Pacific Ocean'],
+  ['New York', 'United States', 'us', 40.713, -74.006, 'New York City', 'English', 'Pizza slices and bagels', 'A giant green statue welcomes ships to its harbour'],
+  ['Los Angeles', 'United States', 'us', 34.052, -118.244, 'Los Angeles', 'English and Spanish', 'Movies and tacos', 'Giant white letters on a hill spell the name of a famous film district'],
+  ['San Francisco', 'United States', 'us', 37.775, -122.419, 'San Francisco', 'English', 'Sourdough bread', 'An orange bridge spans the entrance to its bay'],
+  ['Chicago', 'United States', 'us', 41.878, -87.630, 'Chicago', 'English', 'Deep-dish pizza', 'The first skyscraper was built here'],
+  ['Miami', 'United States', 'us', 25.762, -80.192, 'Miami', 'English and Spanish', 'Cuban sandwiches and beaches', 'Alligators live in the swamps nearby'],
+  ['Las Vegas', 'United States', 'us', 36.170, -115.140, 'Las Vegas', 'English', 'Casinos and neon lights', 'It is a bright city built in the middle of a desert'],
+  ['New Orleans', 'United States', 'us', 29.951, -90.072, 'New Orleans', 'English', 'Jazz and gumbo', 'Jazz music was born here'],
+  ['Grand Canyon', 'United States', 'us', 36.107, -112.113, 'Grand Canyon', 'English', 'A huge red canyon', 'A river carved it over millions of years'],
+  ['Anchorage', 'United States', 'us', 61.218, -149.900, 'Anchorage, Alaska', 'English', 'Salmon and bears', 'In summer the sun barely sets'],
+  ['Washington DC', 'United States', 'us', 38.907, -77.037, 'Washington, D.C.', 'English', 'Museums and monuments', 'The president lives in a famous white house here'],
+  ['Toronto', 'Canada', 'ca', 43.653, -79.383, 'Toronto', 'English', 'Poutine and peameal bacon', 'A very tall tower has a glass floor you can stand on'],
+  ['Vancouver', 'Canada', 'ca', 49.283, -123.121, 'Vancouver', 'English', 'Salmon and mountains', 'You can ski and go to the beach on the same day'],
+  ['Montreal', 'Canada', 'ca', 45.502, -73.567, 'Montreal', 'French', 'Bagels and poutine', 'It is one of the biggest French-speaking cities in the world'],
+  ['Quebec City', 'Canada', 'ca', 46.813, -71.208, 'Quebec City', 'French', 'Maple syrup', 'It has the only old city walls still standing north of Mexico'],
+  ['Banff', 'Canada', 'ca', 51.178, -115.571, 'Banff, Alberta', 'English', 'Turquoise lakes and mountains', 'Its lakes are bright blue because of glacier dust'],
+  ['Mexico City', 'Mexico', 'mx', 19.433, -99.133, 'Mexico City', 'Spanish', 'Tacos al pastor', 'The city is slowly sinking because it was built on a lake'],
+  ['Cancun', 'Mexico', 'mx', 21.161, -86.851, 'Cancún', 'Spanish', 'Beaches and Mayan ruins', 'An underwater museum of statues is nearby'],
+  ['Havana', 'Cuba', 'cu', 23.113, -82.366, 'Havana', 'Spanish', 'Old American cars and salsa', 'Colourful 1950s cars still drive its streets'],
+  ['Kingston', 'Jamaica', 'jm', 17.971, -76.793, 'Kingston, Jamaica', 'English and Patois', 'Jerk chicken and reggae', 'Bob Marley lived here'],
+  ['Panama City', 'Panama', 'pa', 8.952, -79.535, 'Casco Viejo, Panama', 'Spanish', 'Ships and a famous canal', 'Ships cross from one ocean to another near here'],
+  ['San Jose', 'Costa Rica', 'cr', 9.928, -84.091, 'San José, Costa Rica', 'Spanish', 'Rainforests and sloths', 'This country has no army'],
+  ['Rio de Janeiro', 'Brazil', 'br', -22.907, -43.173, 'Rio de Janeiro', 'Portuguese', 'Carnival and samba', 'A giant statue with open arms looks over the city'],
+  ['Sao Paulo', 'Brazil', 'br', -23.551, -46.633, 'São Paulo', 'Portuguese', 'Feijoada stew', 'It is the biggest city in the Southern Hemisphere'],
+  ['Manaus', 'Brazil', 'br', -3.119, -60.022, 'Manaus', 'Portuguese', 'The Amazon rainforest', 'An opera house stands in the middle of the jungle'],
+  ['Buenos Aires', 'Argentina', 'ar', -34.604, -58.382, 'Buenos Aires', 'Spanish', 'Steak and tango', 'The tango dance started here'],
+  ['Patagonia', 'Argentina', 'ar', -50.335, -72.264, 'Perito Moreno Glacier', 'Spanish', 'Giant glaciers', 'Huge chunks of ice crash off a glacier into a lake'],
+  ['Santiago', 'Chile', 'cl', -33.449, -70.669, 'Santiago', 'Spanish', 'Empanadas', 'The snowy Andes mountains are right behind the city'],
+  ['Lima', 'Peru', 'pe', -12.046, -77.043, 'Lima', 'Spanish', 'Ceviche', 'It almost never rains here even though it is by the sea'],
+  ['Machu Picchu', 'Peru', 'pe', -13.163, -72.545, 'Machu Picchu', 'Spanish and Quechua', 'An ancient city on a mountain', 'It was built by the Inca and rediscovered in 1911'],
+  ['La Paz', 'Bolivia', 'bo', -16.500, -68.150, 'La Paz', 'Spanish and Aymara', 'Cable cars and llamas', 'The highest capital city in the world'],
+  ['Bogota', 'Colombia', 'co', 4.711, -74.072, 'Bogotá', 'Spanish', 'Arepas and coffee', 'There is a museum here full of ancient gold'],
+  ['Quito', 'Ecuador', 'ec', -0.181, -78.468, 'Quito', 'Spanish', 'The middle of the world', 'The equator line passes just outside the city'],
+  ['Galapagos', 'Ecuador', 'ec', -0.954, -90.966, 'Galápagos Islands', 'Spanish', 'Giant tortoises', 'Darwin studied the animals here'],
+  ['Antarctica', 'Antarctica', 'aq', -77.846, 166.676, 'McMurdo Station', 'English', 'Penguins and ice', 'It is the coldest, windiest and driest continent'],
+  ['Svalbard', 'Norway', 'no', 78.223, 15.646, 'Longyearbyen', 'Norwegian', 'Polar bears', 'A seed vault here stores seeds from all over the world'],
+  ['Greenland', 'Greenland', 'gl', 64.184, -51.722, 'Nuuk', 'Greenlandic and Danish', 'Icebergs and huskies', 'The biggest island in the world'],
+  ['Maldives', 'Maldives', 'mv', 4.175, 73.509, 'Malé', 'Dhivehi', 'Overwater bungalows', 'The lowest-lying country in the world'],
+  ['Mauritius', 'Mauritius', 'mu', -20.453, 57.312, 'Le Morne Brabant', 'English, French and Creole', 'Turquoise lagoons', 'The dodo bird once lived only here'],
+  ['Easter Island', 'Chile', 'cl', -27.113, -109.350, 'Easter Island', 'Spanish and Rapa Nui', 'Giant stone heads', 'It is one of the most remote inhabited islands on Earth'],
+  ['Bora Bora', 'France', 'pf', -16.500, -151.741, 'Bora Bora', 'French and Tahitian', 'A turquoise lagoon', 'It is in the middle of the South Pacific'],
+  ['Stonehenge', 'United Kingdom', 'gb', 51.179, -1.826, 'Stonehenge', 'English', 'Ancient standing stones', 'Nobody knows for sure why it was built'],
+  ['Pisa', 'Italy', 'it', 43.723, 10.397, 'Leaning Tower of Pisa', 'Italian', 'A tower that leans', 'It started leaning while it was still being built'],
+  ['Mount Fuji', 'Japan', 'jp', 35.361, 138.727, 'Mount Fuji', 'Japanese', 'A snowy volcano', 'It is the tallest mountain in its country'],
+  ['Great Wall', 'China', 'cn', 40.432, 116.570, 'Great Wall of China', 'Mandarin Chinese', 'A wall thousands of kilometres long', 'It took over 2,000 years to build'],
+  ['Angkor Wat', 'Cambodia', 'kh', 13.412, 103.867, 'Angkor Wat', 'Khmer', 'A giant temple in the jungle', 'It is the largest religious monument in the world'],
+  ['Niagara Falls', 'Canada', 'ca', 43.083, -79.074, 'Niagara Falls', 'English', 'Huge waterfalls', 'They sit right on the border of two countries'],
+  ['Iguazu Falls', 'Argentina', 'ar', -25.686, -54.444, 'Iguazu Falls', 'Spanish and Portuguese', 'Hundreds of waterfalls', 'They sit on the border of two countries in the rainforest'],
+  ['Serengeti', 'Tanzania', 'tz', -2.333, 34.833, 'Serengeti National Park', 'Swahili', 'The great animal migration', 'Over a million wildebeest travel across it every year'],
+  ['Sahara', 'Morocco', 'ma', 31.150, -3.980, 'Erg Chebbi', 'Arabic and Berber', 'Sand dunes and camels', 'The largest hot desert in the world'],
+  ['Chichen Itza', 'Mexico', 'mx', 20.684, -88.568, 'Chichen Itza', 'Spanish and Maya', 'A step pyramid', 'Clap at the bottom and the echo sounds like a bird'],
+  ['Yellowstone', 'United States', 'us', 44.428, -110.588, 'Yellowstone National Park', 'English', 'Geysers and bison', 'It was the first national park in the world'],
+  ['Hobbiton', 'New Zealand', 'nz', -37.872, 175.683, 'Hobbiton Movie Set', 'English', 'Little round doors in hills', 'A movie village was built on a sheep farm here'],
+  ['Ha Long Bay', 'Vietnam', 'vn', 20.910, 107.184, 'Hạ Long Bay', 'Vietnamese', 'Rocky islands rising from the sea', 'Legend says dragons made its islands'],
+  ['Great Barrier Reef', 'Australia', 'au', -18.287, 147.700, 'Great Barrier Reef', 'English', 'Coral and clownfish', 'It is the biggest living structure on Earth'],
+  ['Dead Sea', 'Jordan', 'jo', 31.559, 35.473, 'Dead Sea', 'Arabic and Hebrew', 'Floating in very salty water', 'It is the lowest point on land on Earth'],
+  ['Matterhorn', 'Switzerland', 'ch', 45.976, 7.658, 'Matterhorn', 'German and Italian', 'A pointy snowy mountain', 'Its shape inspired a famous chocolate bar logo'],
+];
+const GEO_ROUNDS = 5;
+const CLUE_MAX = [5000, 4000, 3200, 2500, 2000]; // most you can score after seeing this many clues
+let geo = null, geoState = null, geoWorld = null, geoBorders = null, geoProj = null, geoPath = null, geoK = 1, geoZoom = null;
+const photoCache = new Map();
+const geoDailyDone = () => save.geoDaily && save.geoDaily.date === todayKey();
+const flagUrl = cc => `https://flagcdn.com/w160/${cc}.png`;
+
+function haversine([lon1, lat1], [lon2, lat2]) {
+  const R = 6371, rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+const geoPoints = (km, maxPts) => km < 25 ? maxPts : Math.round(maxPts * Math.exp(-km / 1800));
+const geoTier = pts => pts >= 4000 ? 4 : pts >= 2500 ? 3 : pts >= 1000 ? 2 : pts > 0 ? 1 : 0;
+
+function dailyPlaces(day) {
+  const loop = shuffledIdx(PLACES.length, 4242);
+  return Array.from({ length: GEO_ROUNDS }, (_, k) => loop[(day * GEO_ROUNDS + k) % loop.length]);
+}
+function freshPlaces() {
+  let seen = (save.geoSeen || []).filter(i => i < PLACES.length);
+  if (seen.length > PLACES.length - GEO_ROUNDS) seen = [];
+  const left = shuffledIdx(PLACES.length, Math.floor(Math.random() * 1e9)).filter(i => !seen.includes(i));
+  return left.slice(0, GEO_ROUNDS);
+}
+
+async function loadWorld() {
+  if (geoWorld) return;
+  const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json');
+  const topo = await res.json();
+  geoWorld = topojson.feature(topo, topo.objects.countries);
+  geoBorders = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
+}
+
+async function fetchPhoto(title) {
+  if (photoCache.has(title)) return photoCache.get(title);
+  const url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=960&titles=' + encodeURIComponent(title);
+  const p = fetch(url).then(r => r.json()).then(j => {
+    const page = Object.values((j.query && j.query.pages) || {})[0];
+    const src = page && page.thumbnail && page.thumbnail.source;
+    if (!src) throw new Error('no photo');
+    return src;
+  });
+  photoCache.set(title, p);
+  p.catch(() => photoCache.delete(title));
+  return p;
+}
+
+async function startGeo({ seed, daily, duel, picks }) {
+  const valid = Array.isArray(picks) && picks.length === GEO_ROUNDS && picks.every(i => Number.isInteger(i) && i >= 0 && i < PLACES.length);
+  const places = daily ? dailyPlaces(dayNumber(todayKey())) : valid ? picks : freshPlaces();
+  save.geoSeen = [...new Set([...(save.geoSeen || []), ...places])]; persist();
+  geo = { seed, daily, duel, places, i: 0, total: 0, oppTotal: 0, rounds: [], oppGuesses: {}, countsAsDaily: daily && !geoDailyDone(), shown: false };
+  game = null; sort = null; lastMode = 'geo'; currentGame = 'geo'; phase = 'geo';
+  showScreen('geoWrap');
+  SFX.dive();
+  $('geoRevealBox').classList.add('hidden');
+  $('geoHint').textContent = 'Loading the map…';
+  try { await loadWorld(); }
+  catch (e) { $('geoHint').textContent = "Couldn't load the world map. Check your internet and try again."; return; }
+  places.forEach(i => fetchPhoto(PLACES[i][5]).catch(() => {}));
+  geoRound();
+}
+
+function geoRound() {
+  const p = PLACES[geo.places[geo.i]];
+  geoState = { p, ans: [p[4], p[3]], clues: 1, guess: null, locked: false, revealed: false };
+  $('geoRevealBox').classList.add('hidden');
+  $('geoRound').textContent = `${geo.daily ? 'Daily trip' : geo.duel ? 'Duel' : 'Practice'} · Place ${geo.i + 1} / ${GEO_ROUNDS}`;
+  $('geoScore').textContent = geo.total.toLocaleString() + ' pts';
+  $('geoHint').textContent = 'Tap the map where you think this is, then press Guess.';
+  const img = $('geoImg'), msg = $('geoImgMsg');
+  img.classList.add('hidden'); msg.textContent = 'Loading photo…'; msg.classList.remove('hidden');
+  const round = geo.i;
+  fetchPhoto(p[5]).then(src => {
+    if (!geo || geo.i !== round) return;
+    img.onload = () => { img.classList.remove('hidden'); msg.classList.add('hidden'); };
+    img.src = src;
+  }).catch(() => {
+    if (!geo || geo.i !== round) return;
+    msg.textContent = 'No photo for this one. Here is a free clue instead!';
+    if (geoState.clues < 2) { geoState.clues = 2; renderClues(); }
+  });
+  geoK = 1;
+  drawMap();
+  renderClues();
+}
+
+function renderClues() {
+  const s = geoState, p = s.p;
+  const list = [
+    ['🗣️', 'Language', p[6]],
+    ['⭐', 'Known for', p[7]],
+    ['💡', 'Fun fact', p[8]],
+    ['🏳️', 'Flag', `<img class="flag" src="${flagUrl(p[2])}" alt="flag">`],
+  ];
+  $('geoClues').innerHTML = list.slice(0, s.clues - 1).map(([i, label, v]) => `<div class="clue"><span>${i}</span><div><small>${label}</small>${label === 'Flag' ? v : esc(v)}</div></div>`).join('');
+  const more = s.clues < CLUE_MAX.length && !s.locked;
+  $('btnClue').disabled = !more;
+  $('btnClue').textContent = more ? `💡 Clue (max ${CLUE_MAX[s.clues].toLocaleString()})` : '💡 No more clues';
+  $('geoMax').textContent = `Worth up to ${CLUE_MAX[s.clues - 1].toLocaleString()}`;
+  $('btnGuess').disabled = !s.guess || s.locked;
+}
+
+function drawMap() {
+  const box = $('geoMap').getBoundingClientRect(), w = Math.max(100, box.width), h = Math.max(100, box.height);
+  const svg = d3.select('#geoSvg').attr('width', w).attr('height', h).attr('viewBox', `0 0 ${w} ${h}`);
+  svg.selectAll('*').remove();
+  if (!geoWorld) return;
+  // wide boxes show the whole world; tall phone boxes fill the height and you drag sideways
+  geoProj = d3.geoNaturalEarth1();
+  if (w / h >= 1.6) geoProj.fitExtent([[4, 4], [w - 4, h - 4]], { type: 'Sphere' });
+  else geoProj.fitSize([h * 1.95, h - 8], { type: 'Sphere' }).translate([w / 2, h / 2]);
+  geoPath = d3.geoPath(geoProj);
+  const [[bx0, by0], [bx1, by1]] = geoPath.bounds({ type: 'Sphere' });
+  const g = svg.append('g').attr('id', 'geoLayer');
+  g.append('path').datum({ type: 'Sphere' }).attr('d', geoPath).attr('class', 'sea');
+  g.append('path').datum(d3.geoGraticule10()).attr('d', geoPath).attr('class', 'grat');
+  g.append('g').selectAll('path').data(geoWorld.features).join('path').attr('d', geoPath).attr('class', 'land');
+  g.append('path').datum(geoBorders).attr('d', geoPath).attr('class', 'border');
+  g.append('g').attr('id', 'geoMarks');
+  geoZoom = d3.zoom().scaleExtent([1, 60]).translateExtent([[Math.min(0, bx0), Math.min(0, by0)], [Math.max(w, bx1), Math.max(h, by1)]])
+    .on('zoom', e => { g.attr('transform', e.transform); geoK = e.transform.k; drawMarks(); });
+  svg.call(geoZoom).on('dblclick.zoom', null);
+  svg.on('click', e => {
+    if (!geoState || geoState.locked) return;
+    const [x, y] = d3.pointer(e, g.node()), ll = geoProj.invert([x, y]);
+    if (!ll || !isFinite(ll[0]) || !isFinite(ll[1])) return;
+    geoState.guess = ll;
+    SFX.bubble();
+    drawMarks(); renderClues();
+  });
+  drawMarks();
+}
+
+function drawMarks() {
+  const g = d3.select('#geoMarks');
+  if (g.empty() || !geoState) return;
+  g.selectAll('*').remove();
+  const s = geoState, k = geoK;
+  const line = (a, cls) => g.append('path').datum({ type: 'LineString', coordinates: [a, s.ans] }).attr('d', geoPath).attr('class', 'gline ' + cls)
+    .attr('stroke-width', 2.5 / k).attr('stroke-dasharray', `${7 / k} ${5 / k}`);
+  const pin = (ll, cls, r) => { const [x, y] = geoProj(ll); g.append('circle').attr('cx', x).attr('cy', y).attr('r', r / k).attr('class', 'pin ' + cls).attr('stroke-width', 2 / k); };
+  const opp = geo && geo.oppGuesses[geo.i];
+  if (s.revealed) {
+    if (s.guess) line(s.guess, 'me');
+    if (opp && opp.ll) line(opp.ll, 'opp');
+    if (opp && opp.ll) pin(opp.ll, 'opp', 7);
+  }
+  if (s.guess) pin(s.guess, 'me', 7);
+  if (s.revealed) pin(s.ans, 'ans', 9);
+}
+
+function zoomToPoints(points) {
+  const svg = d3.select('#geoSvg'), w = +svg.attr('width'), h = +svg.attr('height');
+  const xy = points.map(p => geoProj(p));
+  const xs = xy.map(p => p[0]), ys = xy.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.max(1, Math.min(12, 0.7 / Math.max((x1 - x0) / w, (y1 - y0) / h, 0.02)));
+  const t = d3.zoomIdentity.translate(w / 2, h / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+  svg.transition().duration(900).call(geoZoom.transform, t);
+}
+
+function geoGuess() {
+  const s = geoState;
+  if (!s || s.locked || !s.guess) return;
+  s.locked = true;
+  s.km = haversine(s.guess, s.ans);
+  s.pts = geoPoints(s.km, CLUE_MAX[s.clues - 1]);
+  SFX.lock();
+  send({ t: 'gguess', r: geo.i, sd: geo.seed, lon: s.guess[0], lat: s.guess[1], km: s.km, pts: s.pts });
+  renderClues();
+  if (geo.duel && online() && !geo.oppGuesses[geo.i]) $('geoHint').textContent = `Guess locked in! Waiting for ${remote.name}…`;
+  else geoReveal();
+}
+
+function geoReveal() {
+  const s = geoState;
+  if (!s || s.revealed) return;
+  s.revealed = true;
+  const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null;
+  geo.total += s.pts;
+  if (opp) geo.oppTotal += opp.pts;
+  geo.rounds.push({ pts: s.pts, km: s.km });
+  $('geoScore').textContent = geo.total.toLocaleString() + ' pts';
+  drawMarks();
+  zoomToPoints([s.ans, s.guess, ...(opp && opp.ll ? [opp.ll] : [])]);
+  const t = geoTier(s.pts);
+  setTimeout(() => SFX.tier(t), 150);
+  if (t >= 3) burstBubbles(20);
+  const km = n => n < 1 ? 'right on it' : Math.round(n).toLocaleString() + ' km away';
+  let html = `<div class="qhead"><span>Place ${geo.i + 1} / ${GEO_ROUNDS}</span><span>${geo.total.toLocaleString()} pts</span></div>`;
+  html += `<div class="geoans"><img class="flag" src="${flagUrl(p[2])}" alt=""><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div></div>`;
+  html += `<div class="ans"><div><div class="who">You</div><div class="what">${km(s.km)}</div></div><div class="pts" style="color:${TIER_COL[t]}">+${s.pts.toLocaleString()}</div></div>`;
+  if (geo.duel) {
+    const rn = remote ? remote.name : 'Friend';
+    html += opp ? `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">${km(opp.km)}</div></div><div class="pts" style="color:${TIER_COL[geoTier(opp.pts)]}">+${opp.pts.toLocaleString()}</div></div>`
+                : `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">left the game</div></div></div>`;
+  }
+  html += `<button class="coral" id="btnGeoNext">${geo.i + 1 < GEO_ROUNDS ? 'Next place →' : 'See results'}</button>`;
+  $('geoRevealBox').innerHTML = html;
+  $('geoRevealBox').classList.remove('hidden');
+  $('geoHint').textContent = '';
+  $('btnGeoNext').onclick = () => { geo.i++; if (geo.i < GEO_ROUNDS) geoRound(); else geoResults(); };
+}
+
+function geoResults() {
+  if (!geo || geo.shown) return;
+  geo.shown = true; phase = 'end';
+  const grid = geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('');
+  const best = Math.min(...geo.rounds.map(r => r.km));
+  save.played++;
+  if (geo.countsAsDaily) {
+    const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
+    save.geoStreak = save.geoLast === yesterday ? (save.geoStreak || 0) + 1 : 1;
+    save.geoLast = k;
+    save.geoDaily = { date: k, total: geo.total };
+  }
+  const newBest = geo.total > (save.geoBest || 0);
+  if (newBest) save.geoBest = geo.total;
+  let title = geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? 'Great drifting! 🐠' : 'Trip complete!';
+  let html = `<div class="stat"><span>Score</span><b>${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()}</b></div>`;
+  html += `<div class="stat"><span>Closest guess</span><b>${Math.round(best).toLocaleString()} km</b></div>`;
+  if (geo.duel) {
+    const rn = remote ? remote.name : 'Friend';
+    html += `<div class="stat"><span>${esc(rn)}</span><b>${geo.oppTotal.toLocaleString()}</b></div>`;
+    if (geo.total > geo.oppTotal) { wins.me++; save.duelWins++; title = 'You win! 🏆'; SFX.win(); }
+    else if (geo.total < geo.oppTotal) { wins.them++; title = rn + ' wins!'; SFX.lose(); }
+    else { title = "It's a tie!"; SFX.done(); }
+    html += `<div class="stat"><span>Duel score</span><b>You ${wins.me} – ${wins.them} ${esc(rn)}</b></div>`;
+  } else (newBest ? SFX.win : SFX.done)();
+  if (geo.countsAsDaily) html += `<div class="stat"><span>Drift streak</span><b>🔥 ${save.geoStreak}</b></div>`;
+  html += `<div class="stat"><span>Best trip</span><b>${(save.geoBest || 0).toLocaleString()}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
+  persist();
+  $('resTitle').textContent = title;
+  $('resGrid').textContent = grid;
+  $('resStats').innerHTML = html;
+  $('btnAgain').textContent = geo.duel ? 'Rematch (new places)' : 'Practice trip';
+  $('btnAgain').disabled = geo.duel && !online();
+  $('resStatus').textContent = geo.duel && online() ? 'Either of you can start a rematch.' : '';
+  showScreen('results');
+}
+
+function geoShareText() {
+  const label = geo.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : geo.duel ? 'Duel' : 'Practice';
+  return `🌍 Drift ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
+}
+
+$('btnClue').onclick = () => { if (geoState && !geoState.locked && geoState.clues < CLUE_MAX.length) { geoState.clues++; SFX.bubbles(3); renderClues(); } };
+$('btnGuess').onclick = geoGuess;
+$('btnGeoDaily').onclick = () => { if (!geoDailyDone()) startGeo({ seed: hashStr('geo' + todayKey()), daily: true, duel: false }); };
+$('btnGeoPractice').onclick = () => startGeo({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false });
+$('btnGeoHub').onclick = () => { leaveNet(); showScreen('hub'); };
+$('btnGeoHost').onclick = () => hostGame();
+$('btnGeoJoin').onclick = () => joinGame();
+$('geoJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+$('cardGeo').onclick = () => { currentGame = 'geo'; showScreen('geoMenu'); };
+// redraw whenever the map box changes size (window resize, photo loading, phone keyboard, rotation)
+let geoBox = '';
+new ResizeObserver(() => {
+  const r = $('geoMap').getBoundingClientRect(), key = Math.round(r.width) + 'x' + Math.round(r.height);
+  if (phase !== 'geo' || !geoWorld || key === geoBox || r.width < 50) return;
+  geoBox = key; geoK = 1; drawMap();
+  if (geoState && geoState.revealed) zoomToPoints([geoState.ans, geoState.guess]);
+}).observe($('geoMap'));
+
 // ---------- networking (PeerJS, peer to peer) ----------
 let peer = null, conn = null, isHost = false, remote = null, useDailySet = true;
 const wins = { me: 0, them: 0 };
@@ -1463,7 +1927,7 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $(currentGame === 'sort' ? 'sortJoinCode' : 'joinCode').value.trim().toUpperCase();
+  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
   if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
   if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
@@ -1488,6 +1952,7 @@ function setupConn(c) {
     toast(name + ' disconnected');
     if (phase === 'ask') tryReveal();
     if (phase === 'sort' && sort && sort.done) setTimeout(showSortResults, 500);
+    if (phase === 'geo' && geoState && geoState.locked && !geoState.revealed) geoReveal();
     if (!$('lobby').classList.contains('hidden')) { $('lobbyStatus').textContent = isHost ? 'Friend left. Waiting for someone to join…' : 'Host left.'; $('btnStart').disabled = true; }
     if (phase === 'end') $('btnAgain').disabled = game && game.duel;
   });
@@ -1505,7 +1970,11 @@ function onData(d) {
     remote.look = cleanLook(d.look);
   } else if (d.t === 'start') {
     if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true, pi: d.pi });
+    else if (d.game === 'geo') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks });
     else startGame({ seed: d.seed, daily: d.daily, duel: true });
+  } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
+    geo.oppGuesses[d.r] = { ll: [+d.lon, +d.lat], km: Math.max(0, +d.km || 0), pts: Math.max(0, Math.min(5000, d.pts | 0)) };
+    if (d.r === geo.i && geoState && geoState.locked && !geoState.revealed) geoReveal();
   } else if (d.t === 'sprog' && sort && sort.duel && d.sd === sort.seed) {
     Object.assign(sort.opp, { found: (d.found || []).map(t => t | 0), air: d.air | 0, done: !!d.done, time: +d.time || 0, mistakes: d.mistakes | 0 });
     if (phase === 'sort') renderSort();
@@ -1524,25 +1993,30 @@ let lobbyGame = 'dive';
 function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
   const pi = which === 'sort' && !daily ? freshPuzzle() : undefined;
-  send({ t: 'start', seed, daily, game: which, pi });
+  const picks = which === 'geo' && !daily ? freshPlaces() : undefined;
+  send({ t: 'start', seed, daily, game: which, pi, picks });
   if (which === 'sort') startSort({ seed, daily, duel: true, pi });
+  else if (which === 'geo') startGeo({ seed, daily, duel: true, picks });
   else startGame({ seed, daily, duel: true });
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, which === 'sort' ? 'Hosting a Shoal Sort duel' : 'Hosting a Krill Dive duel');
-  $('setDaily').textContent = which === 'sort' ? "Today's puzzle" : "Today's set";
-  $('setRandom').textContent = which === 'sort' ? 'Random puzzle' : 'Random set';
-  $('lobbyHelp').innerHTML = which === 'sort'
-    ? 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>'
-    : 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>';
+  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift' };
+  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
+  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip" }[which];
+  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places' }[which];
+  $('lobbyHelp').innerHTML = {
+    sort: 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>',
+    dive: 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>',
+    geo: 'Same 5 places for both of you. See where your friend guessed after each one.<br><b>Closest guesses score the most!</b>',
+  }[which];
 }
 
 // ---------- menus ----------
-const screens = ['hub', 'menu', 'sortMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
 let currentGame = 'dive'; // which game's menu "back" returns to
-const menuStatusId = () => currentGame === 'sort' ? 'sortStatus' : 'menuStatus';
-const goHome = () => showScreen(currentGame === 'sort' ? 'sortMenu' : 'menu');
+const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus' }[currentGame] || 'menuStatus');
+const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu' }[currentGame] || 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -1587,7 +2061,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (name === 'menu' || name === 'sortMenu' || name === 'hub') { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
@@ -1600,6 +2074,12 @@ function refreshMenu() {
   $('sortStats').innerHTML = `🔥 Streak ${sortStreak} · ${SORT_PUZZLES.length} puzzles<br>` +
     SORT_TIERS.map(t => `${t.emoji} ${t.name}`).join(' · ') + '<br>📡 Sonar reveals one group name (once per puzzle)';
   $('hubDiveStatus').textContent = dailyDone() ? `✓ Today's dive: ${(save.daily.pts * M_PER_PT).toLocaleString()} m` : "🌊 Today's dive is ready!";
+  const gd = geoDailyDone();
+  $('btnGeoDaily').textContent = gd ? `Done ✓ ${save.geoDaily.total.toLocaleString()} pts` : "Today's Trip";
+  $('btnGeoDaily').disabled = gd;
+  $('hubGeoStatus').textContent = gd ? `✓ Today's trip: ${save.geoDaily.total.toLocaleString()} pts` : "🌊 Today's trip is ready!";
+  const geoStreak = save.geoLast === todayKey() || save.geoLast === yest ? save.geoStreak || 0 : 0;
+  $('geoStats').innerHTML = `🔥 Streak ${geoStreak} · Best ${(save.geoBest || 0).toLocaleString()} · ${PLACES.length} places<br>5 places per trip, up to 5,000 points each.<br>Each extra clue lowers the most you can score.`;
   $('hubSortStatus').textContent = sd ? `✓ Today's puzzle: ${save.sortDaily.found}/4 groups` : "🌊 Today's puzzle is ready!";
   const done = dailyDone();
   $('btnDaily').textContent = done ? `Today's dive done: ${(save.daily.pts * M_PER_PT).toLocaleString()} m ✓` : "Today's Dive";
@@ -1632,9 +2112,9 @@ $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.a
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
-  const duel = lastMode === 'sort' ? sort && sort.duel : game && game.duel;
+  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' ? geo && geo.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
-  else (lastMode === 'sort' ? $('btnSortPractice') : $('btnPractice')).onclick();
+  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice') }[lastMode] || $('btnPractice')).onclick();
 };
 $('btnResMenu').onclick = () => { leaveNet(); game = null; goHome(); };
 refreshMenu();
