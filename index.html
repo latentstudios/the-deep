@@ -89,6 +89,19 @@
     .geophoto img { max-height:40vh; }
     .geobar { grid-column:2; }
   }
+  /* Wander (Street View mode of the Drift screen) */
+  .streetpano { display:none; border-radius:16px; overflow:hidden; background:#000; border:1px solid var(--line); }
+  .streetonly { display:none; }
+  #geoWrap.street .geoside, #geoWrap.street #btnClue { display:none; }
+  #geoWrap.street .streetonly { display:block; }
+  #geoWrap.street .streetpano { display:block; flex:1; min-height:180px; }
+  #geoWrap.street .geomap { flex:none; height:38%; transition:height .25s; }
+  #geoWrap.street.mapbig .geomap { height:70%; }
+  @media (min-width:900px) {
+    #geoWrap.street { display:flex; flex-direction:column; }
+    #geoWrap.street .geomap { position:absolute; right:22px; bottom:80px; width:380px; height:250px; z-index:5; box-shadow:0 10px 40px rgba(0,0,0,.6); transition:width .25s, height .25s; }
+    #geoWrap.street .geomap:hover, #geoWrap.street.mapbig .geomap { width:min(62vw, 900px); height:min(62vh, 560px); }
+  }
   #gear { position:fixed; top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right)); width:46px; height:46px; margin:0; padding:0; border-radius:50%; font-size:22px; background:rgba(0,0,0,.35); color:#fff; border:1px solid var(--line); z-index:25; }
   #settings { z-index:30; }
   .set-row { display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px; font-size:19px; font-weight:600; }
@@ -212,6 +225,10 @@
       <span class="cicon">🌍</span>
       <span class="ctext"><b>Drift</b><small>Your krill drifted off. Find where in the world it is!</small><em id="hubGeoStatus"></em></span>
     </button>
+    <button class="card" id="cardStreet">
+      <span class="cicon">🧭</span>
+      <span class="ctext"><b>Wander</b><small>Explore real Street View anywhere on Earth, then guess where you are</small><em id="hubStreetStatus"></em></span>
+    </button>
     <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
   </div>
 </div>
@@ -297,6 +314,31 @@
   </div>
 </div>
 
+<div id="streetMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>WAN<span>DER</span></h1>
+    <div class="tag">You wake up somewhere random on Earth.<br>Look around in Street View, walk down the road, then pin it on the map.</div>
+    <button class="coral" id="btnStreetDaily">Today's Spots</button>
+    <button class="ghost" id="btnStreetPractice">Practice</button>
+    <div class="divider">— duel a friend —</div>
+    <button id="btnStreetHost">Host Duel</button>
+    <div class="row">
+      <div style="flex:1.4"><label for="streetJoinCode">Friend's code</label><input id="streetJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
+      <button id="btnStreetJoin">Join</button>
+    </div>
+    <div class="status" id="streetStatus"></div>
+    <div id="streetKeyBox">
+      <div class="divider">— Google Street View key —</div>
+      <label for="streetKeyInput">Google Maps API key</label>
+      <input id="streetKeyInput" placeholder="AIza…" autocomplete="off" spellcheck="false">
+      <button class="ghost" id="btnSaveKey">Save key</button>
+      <div class="help">Street View needs a free Google Maps key (made by a grown-up with a Google Cloud account). Turn on the <b>Maps JavaScript API</b>, then paste the key here.</div>
+    </div>
+    <div class="help" id="streetStats"></div>
+    <button class="ghost back" id="btnStreetHub">← All games</button>
+  </div>
+</div>
+
 <div id="geoWrap" class="hidden">
   <div class="geoside">
     <div class="qhead"><span id="geoRound">Place 1 / 5</span><span id="geoScore">0 pts</span></div>
@@ -304,8 +346,9 @@
     <div id="geoClues"></div>
     <div class="geomax" id="geoMax"></div>
   </div>
+  <div class="streetpano" id="streetPano"></div>
   <div class="geomap" id="geoMap"><svg id="geoSvg"></svg><div class="geohint" id="geoHint"></div></div>
-  <div class="geobar"><button class="ghost" id="btnClue">💡 Clue</button><button class="coral" id="btnGuess" disabled>📍 Guess</button></div>
+  <div class="geobar"><button class="ghost" id="btnClue">💡 Clue</button><button class="ghost streetonly" id="btnStreetReturn">↩ Start</button><button class="ghost streetonly" id="btnMapToggle">🗺️ Map</button><button class="coral" id="btnGuess" disabled>📍 Guess</button></div>
   <div class="panel georeveal hidden" id="geoRevealBox"></div>
 </div>
 
@@ -1183,7 +1226,7 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' ? geoShareText() : shareText();
+  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' ? geoShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
@@ -1687,6 +1730,7 @@ async function startGeo({ seed, daily, duel, picks }) {
   save.geoSeen = [...new Set([...(save.geoSeen || []), ...places])]; persist();
   geo = { seed, daily, duel, places, i: 0, total: 0, oppTotal: 0, rounds: [], oppGuesses: {}, countsAsDaily: daily && !geoDailyDone(), shown: false };
   game = null; sort = null; lastMode = 'geo'; currentGame = 'geo'; phase = 'geo';
+  $('geoWrap').classList.remove('street', 'mapbig');
   showScreen('geoWrap');
   SFX.dive();
   $('geoRevealBox').classList.add('hidden');
@@ -1698,6 +1742,17 @@ async function startGeo({ seed, daily, duel, picks }) {
 }
 
 function geoRound() {
+  if (geo.mode === 'street') {
+    const spot = geo.spots[geo.i];
+    geoState = { p: null, spot, ans: [spot.lng, spot.lat], clues: 1, guess: null, locked: false, revealed: false };
+    $('geoRevealBox').classList.add('hidden');
+    $('geoWrap').classList.remove('mapbig');
+    $('geoRound').textContent = `Spot ${geo.i + 1} / ${GEO_ROUNDS}`;
+    $('geoHint').textContent = `${geo.daily ? 'Daily' : geo.duel ? 'Duel' : 'Practice'} · Spot ${geo.i + 1}/${GEO_ROUNDS} · ${geo.total.toLocaleString()} pts · look around, then tap here to guess`;
+    showStreetPano(spot);
+    geoK = 1; drawMap(); renderClues();
+    return;
+  }
   const p = PLACES[geo.places[geo.i]];
   geoState = { p, ans: [p[4], p[3]], clues: 1, guess: null, locked: false, revealed: false };
   $('geoRevealBox').classList.add('hidden');
@@ -1723,6 +1778,7 @@ function geoRound() {
 
 function renderClues() {
   const s = geoState, p = s.p;
+  if (!p) { $('btnGuess').disabled = !s.guess || s.locked; return; } // Street View mode has no clues
   const list = [
     ['🗣️', 'Language', p[6]],
     ['⭐', 'Known for', p[7]],
@@ -1813,7 +1869,8 @@ function geoReveal() {
   const s = geoState;
   if (!s || s.revealed) return;
   s.revealed = true;
-  const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null;
+  const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null, street = geo.mode === 'street';
+  if (street) $('geoWrap').classList.add('mapbig');
   geo.total += s.pts;
   if (opp) geo.oppTotal += opp.pts;
   geo.rounds.push({ pts: s.pts, km: s.km });
@@ -1825,14 +1882,16 @@ function geoReveal() {
   if (t >= 3) burstBubbles(20);
   const km = n => n < 1 ? 'right on it' : Math.round(n).toLocaleString() + ' km away';
   let html = `<div class="qhead"><span>Place ${geo.i + 1} / ${GEO_ROUNDS}</span><span>${geo.total.toLocaleString()} pts</span></div>`;
-  html += `<div class="geoans"><img class="flag" src="${flagUrl(p[2])}" alt=""><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div></div>`;
+  html += street
+    ? `<div class="geoans"><span style="font-size:30px">📍</span><div><b>Here it was!</b><small><a href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(s.spot.id)}" target="_blank" rel="noopener" style="color:var(--cyan)">Open this spot in Google Maps</a></small></div></div>`
+    : `<div class="geoans"><img class="flag" src="${flagUrl(p[2])}" alt=""><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div></div>`;
   html += `<div class="ans"><div><div class="who">You</div><div class="what">${km(s.km)}</div></div><div class="pts" style="color:${TIER_COL[t]}">+${s.pts.toLocaleString()}</div></div>`;
   if (geo.duel) {
     const rn = remote ? remote.name : 'Friend';
     html += opp ? `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">${km(opp.km)}</div></div><div class="pts" style="color:${TIER_COL[geoTier(opp.pts)]}">+${opp.pts.toLocaleString()}</div></div>`
                 : `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">left the game</div></div></div>`;
   }
-  html += `<button class="coral" id="btnGeoNext">${geo.i + 1 < GEO_ROUNDS ? 'Next place →' : 'See results'}</button>`;
+  html += `<button class="coral" id="btnGeoNext">${geo.i + 1 < GEO_ROUNDS ? (street ? 'Next spot →' : 'Next place →') : 'See results'}</button>`;
   $('geoRevealBox').innerHTML = html;
   $('geoRevealBox').classList.remove('hidden');
   $('geoHint').textContent = '';
@@ -1844,16 +1903,17 @@ function geoResults() {
   geo.shown = true; phase = 'end';
   const grid = geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('');
   const best = Math.min(...geo.rounds.map(r => r.km));
+  const pre = geo.mode === 'street' ? 'street' : 'geo';
   save.played++;
   if (geo.countsAsDaily) {
     const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
-    save.geoStreak = save.geoLast === yesterday ? (save.geoStreak || 0) + 1 : 1;
-    save.geoLast = k;
-    save.geoDaily = { date: k, total: geo.total };
+    save[pre + 'Streak'] = save[pre + 'Last'] === yesterday ? (save[pre + 'Streak'] || 0) + 1 : 1;
+    save[pre + 'Last'] = k;
+    save[pre + 'Daily'] = { date: k, total: geo.total };
   }
-  const newBest = geo.total > (save.geoBest || 0);
-  if (newBest) save.geoBest = geo.total;
-  let title = geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? 'Great drifting! 🐠' : 'Trip complete!';
+  const newBest = geo.total > (save[pre + 'Best'] || 0);
+  if (newBest) save[pre + 'Best'] = geo.total;
+  let title = geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? (pre === 'street' ? 'Great wandering! 🧭' : 'Great drifting! 🐠') : 'Trip complete!';
   let html = `<div class="stat"><span>Score</span><b>${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()}</b></div>`;
   html += `<div class="stat"><span>Closest guess</span><b>${Math.round(best).toLocaleString()} km</b></div>`;
   if (geo.duel) {
@@ -1864,13 +1924,13 @@ function geoResults() {
     else { title = "It's a tie!"; SFX.done(); }
     html += `<div class="stat"><span>Duel score</span><b>You ${wins.me} – ${wins.them} ${esc(rn)}</b></div>`;
   } else (newBest ? SFX.win : SFX.done)();
-  if (geo.countsAsDaily) html += `<div class="stat"><span>Drift streak</span><b>🔥 ${save.geoStreak}</b></div>`;
-  html += `<div class="stat"><span>Best trip</span><b>${(save.geoBest || 0).toLocaleString()}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
+  if (geo.countsAsDaily) html += `<div class="stat"><span>${pre === 'street' ? 'Wander' : 'Drift'} streak</span><b>🔥 ${save[pre + 'Streak']}</b></div>`;
+  html += `<div class="stat"><span>Best trip</span><b>${(save[pre + 'Best'] || 0).toLocaleString()}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
   persist();
   $('resTitle').textContent = title;
   $('resGrid').textContent = grid;
   $('resStats').innerHTML = html;
-  $('btnAgain').textContent = geo.duel ? 'Rematch (new places)' : 'Practice trip';
+  $('btnAgain').textContent = geo.duel ? 'Rematch (new places)' : pre === 'street' ? 'Practice again' : 'Practice trip';
   $('btnAgain').disabled = geo.duel && !online();
   $('resStatus').textContent = geo.duel && online() ? 'Either of you can start a rematch.' : '';
   showScreen('results');
@@ -1878,7 +1938,7 @@ function geoResults() {
 
 function geoShareText() {
   const label = geo.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : geo.duel ? 'Duel' : 'Practice';
-  return `🌍 Drift ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
+  return `${geo.mode === 'street' ? '🧭 Wander' : '🌍 Drift'} ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
 }
 
 $('btnClue').onclick = () => { if (geoState && !geoState.locked && geoState.clues < CLUE_MAX.length) { geoState.clues++; SFX.bubbles(3); renderClues(); } };
@@ -1898,6 +1958,147 @@ new ResizeObserver(() => {
   geoBox = key; geoK = 1; drawMap();
   if (geoState && geoState.revealed) zoomToPoints([geoState.ans, geoState.guess]);
 }).observe($('geoMap'));
+
+// =====================================================================
+//  Street: drop into a random Google Street View spot and pin it on the map
+// =====================================================================
+// Paste a Google Maps JavaScript API key here (restricted to this website) so everyone gets Street View.
+// Players can also paste their own key in the Street menu.
+const GMAPS_KEY = '';
+// rough boxes over places with lots of Street View: [name, south, north, west, east, weight]
+const STREET_REGIONS = [
+  ['USA west', 32, 48.5, -124, -104, 6], ['USA east', 30, 45, -97, -70, 7], ['Canada', 43, 53, -123, -64, 3], ['Alaska', 58, 64, -152, -145, 1],
+  ['Mexico', 17, 30, -110, -89, 3], ['Guatemala', 14, 16, -92, -89, 1], ['Costa Rica', 8.5, 10.8, -85.5, -83, 1], ['Colombia', 2, 11, -76.5, -73, 2],
+  ['Ecuador', -4, 0.5, -80, -77.5, 1], ['Peru', -16, -5, -80, -70, 2], ['Chile', -42, -20, -73.5, -69.5, 2], ['Argentina', -40, -24, -68, -57, 3],
+  ['Uruguay', -34.8, -30.5, -58, -53.5, 1], ['Brazil', -30, -5, -55, -35, 5], ['Bolivia', -21, -16, -68.5, -63, 1],
+  ['UK', 50.5, 57.5, -5.5, 1.5, 4], ['Ireland', 51.5, 55, -10, -6, 2], ['Iceland', 63.5, 66, -22.5, -14, 1], ['Norway', 58, 63.5, 5, 12, 2],
+  ['Sweden', 55.5, 63, 12, 19, 2], ['Finland', 60, 65, 22, 30, 2], ['Denmark', 54.8, 57.5, 8.2, 12.5, 1], ['Netherlands', 51.4, 53.3, 4, 7, 1],
+  ['Belgium', 49.6, 51.4, 2.6, 6, 1], ['France', 43.5, 50.5, -1.5, 7, 5], ['Spain', 36.5, 43.3, -8.5, 3, 4], ['Portugal', 37, 42, -9, -6.5, 2],
+  ['Italy', 38, 46.5, 7.5, 16.5, 4], ['Switzerland', 46, 47.7, 6.2, 10, 1], ['Austria', 46.5, 48.7, 9.8, 17, 1], ['Germany', 47.5, 54.5, 6.5, 14.5, 4],
+  ['Poland', 50, 54.5, 15, 24, 3], ['Czechia', 48.6, 51, 12.2, 18.8, 1], ['Hungary', 45.8, 48.5, 16.2, 22.8, 1], ['Romania', 44, 48, 21.5, 28.5, 2],
+  ['Bulgaria', 41.5, 44, 22.5, 28, 1], ['Greece', 37, 41, 20.5, 26, 2], ['Croatia', 43, 46, 13.6, 19, 1], ['Serbia', 42.5, 46, 19, 22.5, 1],
+  ['Turkey', 37, 41.5, 27, 40, 3], ['Russia', 52, 60, 30, 50, 3], ['Ukraine', 46.5, 51.5, 23, 38, 2], ['Baltics', 54, 59.5, 21, 28, 1],
+  ['Israel', 29.6, 33.2, 34.3, 35.6, 1], ['UAE', 23.6, 25.8, 51.5, 56, 1], ['Jordan', 29.5, 32.5, 35.5, 37, 1],
+  ['Japan', 31.5, 43.5, 130, 145, 5], ['South Korea', 34.5, 38, 126.3, 129.5, 2], ['Taiwan', 22, 25.3, 120.1, 121.9, 1],
+  ['Thailand', 7, 19.5, 98.5, 104.5, 2], ['Malaysia', 1.5, 6.5, 100.2, 104, 1], ['Singapore', 1.25, 1.45, 103.65, 104, 1],
+  ['Indonesia', -8.8, -6, 105.5, 115.5, 2], ['Philippines', 7, 18.5, 120, 126, 2], ['Cambodia', 10.5, 14, 102.5, 107, 1],
+  ['India', 9, 28, 72.5, 88, 2], ['Sri Lanka', 6, 9.8, 79.8, 81.8, 1], ['Mongolia', 46, 49.5, 102, 110, 1], ['Kyrgyzstan', 40, 43, 72, 79, 1],
+  ['Australia east', -38, -16, 143, 153.5, 4], ['Australia south', -38.5, -31, 115, 141, 2], ['New Zealand', -46.5, -35, 167, 178.5, 2],
+  ['South Africa', -34.5, -23, 18, 32, 3], ['Kenya', -4.5, 1, 34, 41, 1], ['Nigeria', 6, 10, 3, 9, 1], ['Ghana', 5, 8, -3, 1, 1],
+  ['Senegal', 13, 16, -17.2, -12, 1], ['Botswana', -25, -18, 21, 29, 1], ['Uganda', -1, 3, 30, 34.5, 1], ['Tunisia', 33, 37, 8.5, 11, 1],
+];
+const streetDailyDone = () => save.streetDaily && save.streetDaily.date === todayKey();
+let gmapsLoading = null, streetPano = null, streetSvc = null;
+const streetKey = () => GMAPS_KEY || save.gmapsKey || '';
+
+function loadGoogleMaps() {
+  if (window.google && google.maps && google.maps.StreetViewService) return Promise.resolve();
+  if (gmapsLoading) return gmapsLoading;
+  const key = streetKey();
+  if (!key) return Promise.reject(new Error('nokey'));
+  gmapsLoading = new Promise((resolve, reject) => {
+    window.__gmapsReady = resolve;
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&callback=__gmapsReady`;
+    s.async = true;
+    s.onerror = () => reject(new Error('load'));
+    document.head.appendChild(s);
+  });
+  gmapsLoading.catch(() => { gmapsLoading = null; });
+  return gmapsLoading;
+}
+
+// Google calls this when the key is wrong or not allowed on this website
+window.gm_authFailure = () => {
+  gmapsLoading = null;
+  if (phase === 'geo' && geo && geo.mode === 'street') { geo = null; currentGame = 'street'; showScreen('streetMenu'); }
+  streetMsg('Google refused that key. Check the Maps JavaScript API is turned on and the key allows this website.');
+  toast('Street View key problem');
+};
+
+// find an outdoor Street View spot near a random point; retries until it lands on a road somewhere
+async function findStreetSpot(r) {
+  streetSvc = streetSvc || new google.maps.StreetViewService();
+  const total = STREET_REGIONS.reduce((a, b) => a + b[5], 0);
+  for (let tries = 0; tries < 25; tries++) {
+    let pick = r() * total, reg = STREET_REGIONS[0];
+    for (const g of STREET_REGIONS) { pick -= g[5]; if (pick <= 0) { reg = g; break; } }
+    const lat = reg[1] + r() * (reg[2] - reg[1]), lng = reg[3] + r() * (reg[4] - reg[3]);
+    try {
+      const { data } = await streetSvc.getPanorama({ location: { lat, lng }, radius: 50000, source: google.maps.StreetViewSource.OUTDOOR, preference: google.maps.StreetViewPreference.NEAREST });
+      if (data && data.location && data.location.pano && (data.links || []).length) {
+        const ll = data.location.latLng;
+        return { id: data.location.pano, lat: ll.lat(), lng: ll.lng(), region: reg[0] };
+      }
+    } catch (e) { /* no Street View here, try somewhere else */ }
+  }
+  throw new Error('nospot');
+}
+
+async function buildStreetRounds(seed) {
+  const r = rng(seed), spots = [];
+  for (let i = 0; i < GEO_ROUNDS; i++) spots.push(await findStreetSpot(r));
+  return spots;
+}
+
+function streetMsg(text) { $('streetStatus').textContent = text; }
+
+async function startStreet({ seed, daily, duel, picks }) {
+  const valid = Array.isArray(picks) && picks.length === GEO_ROUNDS &&
+    picks.every(p => p && typeof p.id === 'string' && p.id.length < 200 && isFinite(p.lat) && isFinite(p.lng));
+  streetMsg('Loading Street View…');
+  try { await loadGoogleMaps(); }
+  catch (e) {
+    streetMsg(e.message === 'nokey' ? 'Street View needs a Google Maps key first. Paste one below.' :
+              e.message === 'badkey' ? 'Google refused that key. Check it is allowed for this website and has the Maps JavaScript API turned on.' :
+              "Couldn't reach Google Maps. Check your internet.");
+    return false;
+  }
+  let spots = valid ? picks.map(p => ({ id: p.id, lat: +p.lat, lng: +p.lng })) : null;
+  if (!spots) {
+    streetMsg('Finding 5 random places on Earth…');
+    try { spots = await buildStreetRounds(daily ? hashStr('street' + todayKey()) : seed); }
+    catch (e) { streetMsg("Couldn't find Street View spots. If this keeps happening, check your Google Maps key."); return false; }
+  }
+  streetMsg('');
+  geo = { mode: 'street', seed, daily, duel, spots, i: 0, total: 0, oppTotal: 0, rounds: [], oppGuesses: {}, countsAsDaily: daily && !streetDailyDone(), shown: false };
+  game = null; sort = null; lastMode = 'street'; currentGame = 'street'; phase = 'geo';
+  $('geoWrap').classList.add('street');
+  showScreen('geoWrap');
+  SFX.dive();
+  $('geoRevealBox').classList.add('hidden');
+  try { await loadWorld(); }
+  catch (e) { $('geoHint').textContent = "Couldn't load the world map. Check your internet and try again."; return true; }
+  geoRound();
+  return spots;
+}
+
+function showStreetPano(spot) {
+  const opts = {
+    pano: spot.id, pov: { heading: Math.random() * 360, pitch: 0 }, zoom: 0,
+    addressControl: false, showRoadLabels: false, fullscreenControl: false, motionTracking: false, motionTrackingControl: false,
+    linksControl: true, panControl: true, zoomControl: true, clickToGo: true, enableCloseButton: false, disableDefaultUI: false,
+  };
+  if (!streetPano) streetPano = new google.maps.StreetViewPanorama($('streetPano'), opts);
+  else { streetPano.setOptions(opts); streetPano.setPano(spot.id); streetPano.setPov(opts.pov); streetPano.setZoom(0); }
+  streetStart = { id: spot.id };
+}
+let streetStart = null;
+$('btnStreetReturn').onclick = () => { if (streetPano && streetStart) { streetPano.setPano(streetStart.id); SFX.bubbles(3); } };
+$('btnMapToggle').onclick = () => { $('geoWrap').classList.toggle('mapbig'); };
+$('btnStreetDaily').onclick = () => { if (!streetDailyDone()) startStreet({ seed: hashStr('street' + todayKey()), daily: true, duel: false }); };
+$('btnStreetPractice').onclick = () => startStreet({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false });
+$('btnStreetHub').onclick = () => { leaveNet(); showScreen('hub'); };
+$('btnStreetHost').onclick = () => hostGame();
+$('btnStreetJoin').onclick = () => joinGame();
+$('streetJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+$('cardStreet').onclick = () => { currentGame = 'street'; streetMsg(''); showScreen('streetMenu'); };
+$('btnSaveKey').onclick = () => {
+  save.gmapsKey = $('streetKeyInput').value.trim(); persist();
+  gmapsLoading = null;
+  streetMsg(save.gmapsKey ? 'Key saved! Press Practice to try it.' : 'Key removed.');
+  refreshMenu();
+};
 
 // ---------- networking (PeerJS, peer to peer) ----------
 let peer = null, conn = null, isHost = false, remote = null, useDailySet = true;
@@ -1927,7 +2128,7 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
+  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
   if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
   if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
@@ -1971,6 +2172,7 @@ function onData(d) {
   } else if (d.t === 'start') {
     if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true, pi: d.pi });
     else if (d.game === 'geo') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks });
+    else if (d.game === 'street') startStreet({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks }).then(ok => { if (!ok) toast('You need a Google Maps key for Wander duels'); });
     else startGame({ seed: d.seed, daily: d.daily, duel: true });
   } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
     geo.oppGuesses[d.r] = { ll: [+d.lon, +d.lat], km: Math.max(0, +d.km || 0), pts: Math.max(0, Math.min(5000, d.pts | 0)) };
@@ -1992,6 +2194,7 @@ function leaveNet() {
 let lobbyGame = 'dive';
 function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
+  if (which === 'street') { startStreetDuel(seed, daily); return; }
   const pi = which === 'sort' && !daily ? freshPuzzle() : undefined;
   const picks = which === 'geo' && !daily ? freshPlaces() : undefined;
   send({ t: 'start', seed, daily, game: which, pi, picks });
@@ -1999,24 +2202,36 @@ function startDuel(daily, which = lobbyGame) {
   else if (which === 'geo') startGeo({ seed, daily, duel: true, picks });
   else startGame({ seed, daily, duel: true });
 }
+// the host finds the Street View spots first, then sends them so both players see the same places
+async function startStreetDuel(seed, daily) {
+  const say = t => { $('lobbyStatus').textContent = t; $('resStatus').textContent = t; };
+  say('Finding 5 Street View spots…');
+  try {
+    await loadGoogleMaps();
+    const picks = await buildStreetRounds(daily ? hashStr('street' + todayKey()) : seed);
+    send({ t: 'start', seed, daily, game: 'street', picks });
+    startStreet({ seed, daily, duel: true, picks });
+  } catch (e) { say(e.message === 'nokey' ? 'Add a Google Maps key in the Wander menu first.' : "Couldn't load Street View. Check the key and your internet."); }
+}
 function pickLobbyGame(which) {
   lobbyGame = which;
-  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift' };
+  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander' };
   $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
-  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip" }[which];
-  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places' }[which];
+  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots" }[which];
+  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots' }[which];
   $('lobbyHelp').innerHTML = {
     sort: 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>',
     dive: 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>',
     geo: 'Same 5 places for both of you. See where your friend guessed after each one.<br><b>Closest guesses score the most!</b>',
+    street: 'You both drop into the same 5 Street View spots. Look around, then pin it.<br><b>Both of you need Street View working (a Google Maps key).</b>',
   }[which];
 }
 
 // ---------- menus ----------
-const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
 let currentGame = 'dive'; // which game's menu "back" returns to
-const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus' }[currentGame] || 'menuStatus');
-const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu' }[currentGame] || 'menu');
+const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus' }[currentGame] || 'menuStatus');
+const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu' }[currentGame] || 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -2061,7 +2276,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
@@ -2074,6 +2289,14 @@ function refreshMenu() {
   $('sortStats').innerHTML = `🔥 Streak ${sortStreak} · ${SORT_PUZZLES.length} puzzles<br>` +
     SORT_TIERS.map(t => `${t.emoji} ${t.name}`).join(' · ') + '<br>📡 Sonar reveals one group name (once per puzzle)';
   $('hubDiveStatus').textContent = dailyDone() ? `✓ Today's dive: ${(save.daily.pts * M_PER_PT).toLocaleString()} m` : "🌊 Today's dive is ready!";
+  const std = streetDailyDone();
+  $('btnStreetDaily').textContent = std ? `Done ✓ ${save.streetDaily.total.toLocaleString()} pts` : "Today's Spots";
+  $('btnStreetDaily').disabled = std;
+  $('hubStreetStatus').textContent = std ? `✓ Today's spots: ${save.streetDaily.total.toLocaleString()} pts` : streetKey() ? "🌊 Today's spots are ready!" : '🔑 Needs a Google Maps key';
+  $('streetKeyBox').classList.toggle('hidden', !!GMAPS_KEY);
+  $('streetKeyInput').value = save.gmapsKey || '';
+  const stStreak = save.streetLast === todayKey() || save.streetLast === yest ? save.streetStreak || 0 : 0;
+  $('streetStats').innerHTML = `🔥 Streak ${stStreak} · Best ${(save.streetBest || 0).toLocaleString()}<br>5 random Street View spots, up to 5,000 points each.<br>Drag to look around, click the arrows to walk.`;
   const gd = geoDailyDone();
   $('btnGeoDaily').textContent = gd ? `Done ✓ ${save.geoDaily.total.toLocaleString()} pts` : "Today's Trip";
   $('btnGeoDaily').disabled = gd;
@@ -2112,9 +2335,9 @@ $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.a
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
-  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' ? geo && geo.duel : game && game.duel;
+  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' ? geo && geo.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
-  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice') }[lastMode] || $('btnPractice')).onclick();
+  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice') }[lastMode] || $('btnPractice')).onclick();
 };
 $('btnResMenu').onclick = () => { leaveNet(); game = null; goHome(); };
 refreshMenu();
