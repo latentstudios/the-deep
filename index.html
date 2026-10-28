@@ -77,6 +77,7 @@
   .sea { fill:#0e3a66; } .grat { fill:none; stroke:rgba(255,255,255,.06); vector-effect:non-scaling-stroke; }
   .land { fill:#3f8a6e; stroke:none; } .border { fill:none; stroke:rgba(4,16,31,.55); stroke-width:.6; vector-effect:non-scaling-stroke; }
   .pin { stroke:#fff; } .pin.me { fill:var(--coral); } .pin.opp { fill:var(--cyan); } .pin.ans { fill:var(--gold); }
+  .landhit { fill:var(--gold); fill-opacity:.5; stroke:var(--gold); vector-effect:non-scaling-stroke; }
   .gline { fill:none; } .gline.me { stroke:var(--coral); } .gline.opp { stroke:var(--cyan); }
   .geobar { display:flex; gap:8px; flex:none; }
   .geobar button { margin:0; }
@@ -229,6 +230,10 @@
       <span class="cicon">🧭</span>
       <span class="ctext"><b>Wander</b><small>Explore real Street View anywhere on Earth, then guess where you are</small><em id="hubStreetStatus"></em></span>
     </button>
+    <button class="card" id="cardDish">
+      <span class="cicon">🍲</span>
+      <span class="ctext"><b>Galley</b><small>One photo of a national dish. Which country is it from?</small><em id="hubDishStatus"></em></span>
+    </button>
     <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
   </div>
 </div>
@@ -311,6 +316,24 @@
     <div class="status" id="geoStatus"></div>
     <div class="help" id="geoStats"></div>
     <button class="ghost back" id="btnGeoHub">← All games</button>
+  </div>
+</div>
+
+<div id="dishMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>GAL<span>LEY</span></h1>
+    <div class="tag">The ship's cook made a country's national dish.<br>Look at the photo, then tap the country it comes from.</div>
+    <button class="coral" id="btnDishDaily">Today's Menu</button>
+    <button class="ghost" id="btnDishPractice">Practice Meal</button>
+    <div class="divider">— duel a friend —</div>
+    <button id="btnDishHost">Host Duel</button>
+    <div class="row">
+      <div style="flex:1.4"><label for="dishJoinCode">Friend's code</label><input id="dishJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
+      <button id="btnDishJoin">Join</button>
+    </div>
+    <div class="status" id="dishStatus"></div>
+    <div class="help" id="dishStats"></div>
+    <button class="ghost back" id="btnDishHub">← All games</button>
   </div>
 </div>
 
@@ -1976,7 +1999,7 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' ? geoShareText() : shareText();
+  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' || lastMode === 'dish' ? geoShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
@@ -2441,14 +2464,14 @@ function haversine([lon1, lat1], [lon2, lat2]) {
 const geoPoints = (km, maxPts) => km < 25 ? maxPts : Math.round(maxPts * Math.exp(-km / 1800));
 const geoTier = pts => pts >= 4000 ? 4 : pts >= 2500 ? 3 : pts >= 1000 ? 2 : pts > 0 ? 1 : 0;
 
-function dailyPlaces(day) {
-  const loop = shuffledIdx(PLACES.length, 4242);
+function dailyPlaces(day, n = PLACES.length, salt = 4242) {
+  const loop = shuffledIdx(n, salt);
   return Array.from({ length: GEO_ROUNDS }, (_, k) => loop[(day * GEO_ROUNDS + k) % loop.length]);
 }
-function freshPlaces() {
-  let seen = (save.geoSeen || []).filter(i => i < PLACES.length);
-  if (seen.length > PLACES.length - GEO_ROUNDS) seen = [];
-  const left = shuffledIdx(PLACES.length, Math.floor(Math.random() * 1e9)).filter(i => !seen.includes(i));
+function freshPlaces(n = PLACES.length, key = 'geoSeen') {
+  let seen = (save[key] || []).filter(i => i < n);
+  if (seen.length > n - GEO_ROUNDS) seen = [];
+  const left = shuffledIdx(n, Math.floor(Math.random() * 1e9)).filter(i => !seen.includes(i));
   return left.slice(0, GEO_ROUNDS);
 }
 
@@ -2474,12 +2497,14 @@ async function fetchPhoto(title) {
   return p;
 }
 
-async function startGeo({ seed, daily, duel, picks }) {
-  const valid = Array.isArray(picks) && picks.length === GEO_ROUNDS && picks.every(i => Number.isInteger(i) && i >= 0 && i < PLACES.length);
-  const places = daily ? dailyPlaces(dayNumber(todayKey())) : valid ? picks : freshPlaces();
-  save.geoSeen = [...new Set([...(save.geoSeen || []), ...places])]; persist();
-  geo = { seed, daily, duel, places, i: 0, total: 0, oppTotal: 0, rounds: [], oppGuesses: {}, countsAsDaily: daily && !geoDailyDone(), shown: false };
-  game = null; sort = null; lastMode = 'geo'; currentGame = 'geo'; phase = 'geo';
+async function startGeo({ seed, daily, duel, picks, mode = 'geo' }) {
+  const list = mode === 'dish' ? DISHES : PLACES, seenKey = mode === 'dish' ? 'dishSeen' : 'geoSeen';
+  const valid = Array.isArray(picks) && picks.length === GEO_ROUNDS && picks.every(i => Number.isInteger(i) && i >= 0 && i < list.length);
+  const places = daily ? (mode === 'dish' ? dailyPlaces(dayNumber(todayKey()), DISHES.length, 9191) : dailyPlaces(dayNumber(todayKey()))) : valid ? picks : freshPlaces(list.length, seenKey);
+  save[seenKey] = [...new Set([...(save[seenKey] || []), ...places])]; persist();
+  const doneToday = mode === 'dish' ? dishDailyDone() : geoDailyDone();
+  geo = { mode, seed, daily, duel, places, i: 0, total: 0, oppTotal: 0, rounds: [], oppGuesses: {}, countsAsDaily: daily && !doneToday, shown: false };
+  game = null; sort = null; lastMode = mode; currentGame = mode; phase = 'geo';
   $('geoWrap').classList.remove('street', 'mapbig');
   showScreen('geoWrap');
   SFX.dive();
@@ -2487,7 +2512,7 @@ async function startGeo({ seed, daily, duel, picks }) {
   $('geoHint').textContent = 'Loading the map…';
   try { await loadWorld(); }
   catch (e) { $('geoHint').textContent = "Couldn't load the world map. Check your internet and try again."; return; }
-  places.forEach(i => fetchPhoto(PLACES[i][5]).catch(() => {}));
+  places.forEach(i => fetchPhoto(list[i][5]).catch(() => {}));
   geoRound();
 }
 
@@ -2503,12 +2528,13 @@ function geoRound() {
     geoK = 1; drawMap(); renderClues();
     return;
   }
-  const p = PLACES[geo.places[geo.i]];
-  geoState = { p, ans: [p[4], p[3]], clues: 1, guess: null, locked: false, revealed: false };
+  const dish = geo.mode === 'dish';
+  const p = (dish ? DISHES : PLACES)[geo.places[geo.i]];
+  geoState = { p, ans: [p[4], p[3]], clues: 1, guess: null, locked: false, revealed: false, feat: dish ? dishFeature(p) : null };
   $('geoRevealBox').classList.add('hidden');
-  $('geoRound').textContent = `${geo.daily ? 'Daily trip' : geo.duel ? 'Duel' : 'Practice'} · Place ${geo.i + 1} / ${GEO_ROUNDS}`;
+  $('geoRound').textContent = `${geo.daily ? (dish ? 'Daily menu' : 'Daily trip') : geo.duel ? 'Duel' : 'Practice'} · ${dish ? 'Dish' : 'Place'} ${geo.i + 1} / ${GEO_ROUNDS}`;
   $('geoScore').textContent = geo.total.toLocaleString() + ' pts';
-  $('geoHint').textContent = 'Tap the map where you think this is, then press Guess.';
+  $('geoHint').textContent = dish ? 'Tap the country this dish comes from, then press Guess.' : 'Tap the map where you think this is, then press Guess.';
   const img = $('geoImg'), msg = $('geoImgMsg');
   img.classList.add('hidden'); msg.textContent = 'Loading photo…'; msg.classList.remove('hidden');
   const round = geo.i;
@@ -2529,14 +2555,13 @@ function geoRound() {
 function renderClues() {
   const s = geoState, p = s.p;
   if (!p) { $('btnGuess').disabled = !s.guess || s.locked; return; } // Street View mode has no clues
-  const list = [
-    ['🗣️', 'Language', p[6]],
-    ['⭐', 'Known for', p[7]],
-    ['💡', 'Fun fact', p[8]],
-    ['🏳️', 'Flag', `<img class="flag" src="${flagUrl(p[2])}" alt="flag">`],
-  ];
+  const flag = ['🏳️', 'Flag', `<img class="flag" src="${flagUrl(p[2])}" alt="flag">`];
+  const list = geo.mode === 'dish'
+    ? [['🍽️', 'Dish', p[0]], ['🗣️', 'Language', p[6]], flag]
+    : [['🗣️', 'Language', p[6]], ['⭐', 'Known for', p[7]], ['💡', 'Fun fact', p[8]], flag];
+  s.maxClues = list.length + 1;
   $('geoClues').innerHTML = list.slice(0, s.clues - 1).map(([i, label, v]) => `<div class="clue"><span>${i}</span><div><small>${label}</small>${label === 'Flag' ? v : esc(v)}</div></div>`).join('');
-  const more = s.clues < CLUE_MAX.length && !s.locked;
+  const more = s.clues < s.maxClues && !s.locked;
   $('btnClue').disabled = !more;
   $('btnClue').textContent = more ? `💡 Clue (max ${CLUE_MAX[s.clues].toLocaleString()})` : '💡 No more clues';
   $('geoMax').textContent = `Worth up to ${CLUE_MAX[s.clues - 1].toLocaleString()}`;
@@ -2583,6 +2608,7 @@ function drawMarks() {
     .attr('stroke-width', 2.5 / k).attr('stroke-dasharray', `${7 / k} ${5 / k}`);
   const pin = (ll, cls, r) => { const [x, y] = geoProj(ll); g.append('circle').attr('cx', x).attr('cy', y).attr('r', r / k).attr('class', 'pin ' + cls).attr('stroke-width', 2 / k); };
   const opp = geo && geo.oppGuesses[geo.i];
+  if (s.revealed && s.feat) g.append('path').datum(s.feat).attr('d', geoPath).attr('class', 'landhit').attr('stroke-width', 1.5);
   if (s.revealed) {
     if (s.guess) line(s.guess, 'me');
     if (opp && opp.ll) line(opp.ll, 'opp');
@@ -2606,8 +2632,8 @@ function geoGuess() {
   const s = geoState;
   if (!s || s.locked || !s.guess) return;
   s.locked = true;
-  s.km = haversine(s.guess, s.ans);
-  s.pts = geoPoints(s.km, CLUE_MAX[s.clues - 1]);
+  s.km = geo.mode === 'dish' ? dishKm(s) : haversine(s.guess, s.ans);
+  s.pts = geo.mode === 'dish' ? dishPoints(s.km, CLUE_MAX[s.clues - 1]) : geoPoints(s.km, CLUE_MAX[s.clues - 1]);
   SFX.lock();
   send({ t: 'gguess', r: geo.i, sd: geo.seed, lon: s.guess[0], lat: s.guess[1], km: s.km, pts: s.pts });
   renderClues();
@@ -2619,7 +2645,7 @@ function geoReveal() {
   const s = geoState;
   if (!s || s.revealed) return;
   s.revealed = true;
-  const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null, street = geo.mode === 'street';
+  const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null, street = geo.mode === 'street', dish = geo.mode === 'dish';
   if (street) $('geoWrap').classList.add('mapbig');
   geo.total += s.pts;
   if (opp) geo.oppTotal += opp.pts;
@@ -2630,10 +2656,11 @@ function geoReveal() {
   const t = geoTier(s.pts);
   setTimeout(() => SFX.tier(t), 150);
   if (t >= 3) burstBubbles(20);
-  const km = n => n < 1 ? 'right on it' : Math.round(n).toLocaleString() + ' km away';
-  let html = `<div class="qhead"><span>Place ${geo.i + 1} / ${GEO_ROUNDS}</span><span>${geo.total.toLocaleString()} pts</span></div>`;
+  const km = n => n < 1 ? (dish ? 'right country!' : 'right on it') : Math.round(n).toLocaleString() + ' km away';
+  let html = `<div class="qhead"><span>${dish ? 'Dish' : 'Place'} ${geo.i + 1} / ${GEO_ROUNDS}</span><span>${geo.total.toLocaleString()} pts</span></div>`;
   html += street
     ? `<div class="geoans"><span style="font-size:30px">📍</span><div><b>Here it was!</b><small><a href="https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(s.spot.id)}" target="_blank" rel="noopener" style="color:var(--cyan)">Open this spot in Google Maps</a></small></div></div>`
+    : dish ? `<div class="geoans"><img class="flag" src="${flagUrl(p[2])}" alt=""><div><b>${esc(p[1])}</b><small>${esc(p[0])}</small></div></div>`
     : `<div class="geoans"><img class="flag" src="${flagUrl(p[2])}" alt=""><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div></div>`;
   html += `<div class="ans"><div><div class="who">You</div><div class="what">${km(s.km)}</div></div><div class="pts" style="color:${TIER_COL[t]}">+${s.pts.toLocaleString()}</div></div>`;
   if (geo.duel) {
@@ -2641,7 +2668,7 @@ function geoReveal() {
     html += opp ? `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">${km(opp.km)}</div></div><div class="pts" style="color:${TIER_COL[geoTier(opp.pts)]}">+${opp.pts.toLocaleString()}</div></div>`
                 : `<div class="ans"><div><div class="who">${esc(rn)}</div><div class="what">left the game</div></div></div>`;
   }
-  html += `<button class="coral" id="btnGeoNext">${geo.i + 1 < GEO_ROUNDS ? (street ? 'Next spot →' : 'Next place →') : 'See results'}</button>`;
+  html += `<button class="coral" id="btnGeoNext">${geo.i + 1 < GEO_ROUNDS ? (street ? 'Next spot →' : dish ? 'Next dish →' : 'Next place →') : 'See results'}</button>`;
   $('geoRevealBox').innerHTML = html;
   $('geoRevealBox').classList.remove('hidden');
   $('geoHint').textContent = '';
@@ -2653,7 +2680,8 @@ function geoResults() {
   geo.shown = true; phase = 'end';
   const grid = geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('');
   const best = Math.min(...geo.rounds.map(r => r.km));
-  const pre = geo.mode === 'street' ? 'street' : 'geo';
+  const pre = geo.mode === 'street' || geo.mode === 'dish' ? geo.mode : 'geo';
+  const gameName = { street: 'Wander', dish: 'Galley', geo: 'Drift' }[pre];
   save.played++;
   if (geo.countsAsDaily) {
     const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
@@ -2663,9 +2691,13 @@ function geoResults() {
   }
   const newBest = geo.total > (save[pre + 'Best'] || 0);
   if (newBest) save[pre + 'Best'] = geo.total;
-  let title = geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? (pre === 'street' ? 'Great wandering! 🧭' : 'Great drifting! 🐠') : 'Trip complete!';
+  let title = pre === 'dish'
+    ? (geo.total >= 20000 ? 'Master chef! 👨‍🍳' : geo.total >= 12000 ? 'Great taste! 🍲' : 'Meal finished!')
+    : geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? (pre === 'street' ? 'Great wandering! 🧭' : 'Great drifting! 🐠') : 'Trip complete!';
   let html = `<div class="stat"><span>Score</span><b>${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()}</b></div>`;
-  html += `<div class="stat"><span>Closest guess</span><b>${Math.round(best).toLocaleString()} km</b></div>`;
+  html += pre === 'dish'
+    ? `<div class="stat"><span>Right countries</span><b>${geo.rounds.filter(r => r.km < 1).length} / ${GEO_ROUNDS}</b></div>`
+    : `<div class="stat"><span>Closest guess</span><b>${Math.round(best).toLocaleString()} km</b></div>`;
   if (geo.duel) {
     const rn = remote ? remote.name : 'Friend';
     html += `<div class="stat"><span>${esc(rn)}</span><b>${geo.oppTotal.toLocaleString()}</b></div>`;
@@ -2674,13 +2706,13 @@ function geoResults() {
     else { title = "It's a tie!"; SFX.done(); }
     html += `<div class="stat"><span>Duel score</span><b>You ${wins.me} – ${wins.them} ${esc(rn)}</b></div>`;
   } else (newBest ? SFX.win : SFX.done)();
-  if (geo.countsAsDaily) html += `<div class="stat"><span>${pre === 'street' ? 'Wander' : 'Drift'} streak</span><b>🔥 ${save[pre + 'Streak']}</b></div>`;
-  html += `<div class="stat"><span>Best trip</span><b>${(save[pre + 'Best'] || 0).toLocaleString()}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
+  if (geo.countsAsDaily) html += `<div class="stat"><span>${gameName} streak</span><b>🔥 ${save[pre + 'Streak']}</b></div>`;
+  html += `<div class="stat"><span>${pre === 'dish' ? 'Best meal' : 'Best trip'}</span><b>${(save[pre + 'Best'] || 0).toLocaleString()}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
   persist();
   $('resTitle').textContent = title;
   $('resGrid').textContent = grid;
   $('resStats').innerHTML = html;
-  $('btnAgain').textContent = geo.duel ? 'Rematch (new places)' : pre === 'street' ? 'Practice again' : 'Practice trip';
+  $('btnAgain').textContent = geo.duel ? (pre === 'dish' ? 'Rematch (new dishes)' : 'Rematch (new places)') : pre === 'street' ? 'Practice again' : pre === 'dish' ? 'Practice meal' : 'Practice trip';
   $('btnAgain').disabled = geo.duel && !online();
   $('resStatus').textContent = geo.duel && online() ? 'Either of you can start a rematch.' : '';
   showScreen('results');
@@ -2688,10 +2720,10 @@ function geoResults() {
 
 function geoShareText() {
   const label = geo.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : geo.duel ? 'Duel' : 'Practice';
-  return `${geo.mode === 'street' ? '🧭 Wander' : '🌍 Drift'} ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
+  return `${{ street: '🧭 Wander', dish: '🍲 Galley' }[geo.mode] || '🌍 Drift'} ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
 }
 
-$('btnClue').onclick = () => { if (geoState && !geoState.locked && geoState.clues < CLUE_MAX.length) { geoState.clues++; SFX.bubbles(3); renderClues(); } };
+$('btnClue').onclick = () => { if (geoState && !geoState.locked && geoState.clues < (geoState.maxClues || CLUE_MAX.length)) { geoState.clues++; SFX.bubbles(3); renderClues(); } };
 $('btnGuess').onclick = geoGuess;
 $('btnGeoDaily').onclick = () => { if (!geoDailyDone()) startGeo({ seed: hashStr('geo' + todayKey()), daily: true, duel: false }); };
 $('btnGeoPractice').onclick = () => startGeo({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false });
@@ -2708,6 +2740,152 @@ new ResizeObserver(() => {
   geoBox = key; geoK = 1; drawMap();
   if (geoState && geoState.revealed) zoomToPoints([geoState.ans, geoState.guess]);
 }).observe($('geoMap'));
+
+// =====================================================================
+//  Galley: guess the country from a photo of its national dish
+// =====================================================================
+// [dish, country, flag code, capital lat, capital lon, Wikipedia article for the photo, language, country name on the map]
+const DISHES = [
+  ['Pizza Margherita', 'Italy', 'it', 41.903, 12.496, 'Pizza Margherita', 'Italian', 'Italy'],
+  ['Pot-au-feu', 'France', 'fr', 48.857, 2.352, 'Pot-au-feu', 'French', 'France'],
+  ['Paella', 'Spain', 'es', 40.417, -3.704, 'Paella', 'Spanish', 'Spain'],
+  ['Bacalhau', 'Portugal', 'pt', 38.722, -9.139, 'Bacalhau', 'Portuguese', 'Portugal'],
+  ['Fish and chips', 'United Kingdom', 'gb', 51.507, -0.128, 'Fish and chips', 'English', 'United Kingdom'],
+  ['Irish stew', 'Ireland', 'ie', 53.350, -6.260, 'Irish stew', 'English and Irish', 'Ireland'],
+  ['Sauerbraten', 'Germany', 'de', 52.520, 13.405, 'Sauerbraten', 'German', 'Germany'],
+  ['Wiener schnitzel', 'Austria', 'at', 48.208, 16.373, 'Wiener schnitzel', 'German', 'Austria'],
+  ['Cheese fondue', 'Switzerland', 'ch', 46.948, 7.447, 'Cheese fondue', 'German, French and Italian', 'Switzerland'],
+  ['Moules-frites', 'Belgium', 'be', 50.850, 4.352, 'Moules-frites', 'Dutch and French', 'Belgium'],
+  ['Stamppot', 'Netherlands', 'nl', 52.373, 4.893, 'Stamppot', 'Dutch', 'Netherlands'],
+  ['Goulash', 'Hungary', 'hu', 47.498, 19.040, 'Goulash', 'Hungarian', 'Hungary'],
+  ['Pierogi', 'Poland', 'pl', 52.230, 21.012, 'Pierogi', 'Polish', 'Poland'],
+  ['Svíčková', 'Czechia', 'cz', 50.076, 14.438, 'Svíčková', 'Czech', 'Czechia'],
+  ['Bryndzové halušky', 'Slovakia', 'sk', 48.149, 17.107, 'Bryndzové halušky', 'Slovak', 'Slovakia'],
+  ['Pelmeni', 'Russia', 'ru', 55.756, 37.617, 'Pelmeni', 'Russian', 'Russia'],
+  ['Borscht', 'Ukraine', 'ua', 50.450, 30.523, 'Borscht', 'Ukrainian', 'Ukraine'],
+  ['Draniki', 'Belarus', 'by', 53.904, 27.562, 'Draniki', 'Belarusian and Russian', 'Belarus'],
+  ['Moussaka', 'Greece', 'gr', 37.984, 23.728, 'Moussaka', 'Greek', 'Greece'],
+  ['İskender kebap', 'Turkey', 'tr', 39.934, 32.860, 'İskender kebap', 'Turkish', 'Turkey'],
+  ['Köttbullar', 'Sweden', 'se', 59.329, 18.069, 'Swedish meatballs', 'Swedish', 'Sweden'],
+  ['Fårikål', 'Norway', 'no', 59.914, 10.752, 'Fårikål', 'Norwegian', 'Norway'],
+  ['Karelian pasty', 'Finland', 'fi', 60.170, 24.938, 'Karelian pasty', 'Finnish', 'Finland'],
+  ['Smørrebrød', 'Denmark', 'dk', 55.676, 12.568, 'Smørrebrød', 'Danish', 'Denmark'],
+  ['Hákarl', 'Iceland', 'is', 64.147, -21.943, 'Hákarl', 'Icelandic', 'Iceland'],
+  ['Sarmale', 'Romania', 'ro', 44.427, 26.103, 'Sarma (food)', 'Romanian', 'Romania'],
+  ['Pljeskavica', 'Serbia', 'rs', 44.787, 20.457, 'Pljeskavica', 'Serbian', 'Serbia'],
+  ['Štrukli', 'Croatia', 'hr', 45.815, 15.982, 'Štrukli', 'Croatian', 'Croatia'],
+  ['Ćevapi', 'Bosnia and Herzegovina', 'ba', 43.856, 18.413, 'Ćevapi', 'Bosnian, Serbian and Croatian', 'Bosnia and Herz.'],
+  ['Shopska salad', 'Bulgaria', 'bg', 42.698, 23.322, 'Shopska salad', 'Bulgarian', 'Bulgaria'],
+  ['Tavë kosi', 'Albania', 'al', 41.328, 19.818, 'Tavë kosi', 'Albanian', 'Albania'],
+  ['Potica', 'Slovenia', 'si', 46.056, 14.506, 'Potica', 'Slovene', 'Slovenia'],
+  ['Cepelinai', 'Lithuania', 'lt', 54.687, 25.280, 'Cepelinai', 'Lithuanian', 'Lithuania'],
+  ['Grey peas with bacon', 'Latvia', 'lv', 56.950, 24.105, 'Grey peas', 'Latvian', 'Latvia'],
+  ['Halloumi', 'Cyprus', 'cy', 35.186, 33.382, 'Halloumi', 'Greek and Turkish', 'Cyprus'],
+  ['Khachapuri', 'Georgia', 'ge', 41.716, 44.783, 'Khachapuri', 'Georgian', 'Georgia'],
+  ['Khorovats', 'Armenia', 'am', 40.179, 44.499, 'Khorovats', 'Armenian', 'Armenia'],
+  ['Sushi', 'Japan', 'jp', 35.677, 139.650, 'Sushi', 'Japanese', 'Japan'],
+  ['Kimchi', 'South Korea', 'kr', 37.567, 126.978, 'Kimchi', 'Korean', 'South Korea'],
+  ['Peking duck', 'China', 'cn', 39.904, 116.407, 'Peking duck', 'Mandarin Chinese', 'China'],
+  ['Beef noodle soup', 'Taiwan', 'tw', 25.033, 121.565, 'Beef noodle soup', 'Mandarin Chinese', 'Taiwan'],
+  ['Buuz', 'Mongolia', 'mn', 47.886, 106.906, 'Buuz', 'Mongolian', 'Mongolia'],
+  ['Pho', 'Vietnam', 'vn', 21.028, 105.854, 'Pho', 'Vietnamese', 'Vietnam'],
+  ['Pad thai', 'Thailand', 'th', 13.756, 100.502, 'Pad thai', 'Thai', 'Thailand'],
+  ['Fish amok', 'Cambodia', 'kh', 11.556, 104.928, 'Fish amok', 'Khmer', 'Cambodia'],
+  ['Larb', 'Laos', 'la', 17.975, 102.633, 'Larb', 'Lao', 'Laos'],
+  ['Mohinga', 'Myanmar', 'mm', 19.763, 96.078, 'Mohinga', 'Burmese', 'Myanmar'],
+  ['Nasi lemak', 'Malaysia', 'my', 3.139, 101.687, 'Nasi lemak', 'Malay', 'Malaysia'],
+  ['Hainanese chicken rice', 'Singapore', 'sg', 1.352, 103.820, 'Hainanese chicken rice', 'English, Malay, Mandarin and Tamil', ''],
+  ['Nasi goreng', 'Indonesia', 'id', -6.209, 106.846, 'Nasi goreng', 'Indonesian', 'Indonesia'],
+  ['Sinigang', 'Philippines', 'ph', 14.599, 120.984, 'Sinigang', 'Filipino and English', 'Philippines'],
+  ['Masala dosa', 'India', 'in', 28.614, 77.209, 'Dosa (food)', 'Hindi and English', 'India'],
+  ['Nihari', 'Pakistan', 'pk', 33.684, 73.048, 'Nihari', 'Urdu', 'Pakistan'],
+  ['Shorshe ilish', 'Bangladesh', 'bd', 23.810, 90.413, 'Shorshe ilish', 'Bengali', 'Bangladesh'],
+  ['Kottu', 'Sri Lanka', 'lk', 6.927, 79.861, 'Kottu', 'Sinhala and Tamil', 'Sri Lanka'],
+  ['Momo', 'Nepal', 'np', 27.717, 85.324, 'Momo (food)', 'Nepali', 'Nepal'],
+  ['Kabuli palaw', 'Afghanistan', 'af', 34.555, 69.207, 'Kabuli palaw', 'Pashto and Dari', 'Afghanistan'],
+  ['Chelow kabab', 'Iran', 'ir', 35.689, 51.389, 'Chelow kabab', 'Persian', 'Iran'],
+  ['Masgouf', 'Iraq', 'iq', 33.315, 44.366, 'Masgouf', 'Arabic and Kurdish', 'Iraq'],
+  ['Falafel', 'Israel', 'il', 31.769, 35.216, 'Falafel', 'Hebrew', 'Israel'],
+  ['Kibbeh', 'Lebanon', 'lb', 33.894, 35.502, 'Kibbeh', 'Arabic', 'Lebanon'],
+  ['Mansaf', 'Jordan', 'jo', 31.954, 35.911, 'Mansaf', 'Arabic', 'Jordan'],
+  ['Kabsa', 'Saudi Arabia', 'sa', 24.713, 46.675, 'Kabsa', 'Arabic', 'Saudi Arabia'],
+  ['Saltah', 'Yemen', 'ye', 15.369, 44.191, 'Saltah', 'Arabic', 'Yemen'],
+  ['Plov', 'Uzbekistan', 'uz', 41.299, 69.240, 'Plov', 'Uzbek', 'Uzbekistan'],
+  ['Beshbarmak', 'Kazakhstan', 'kz', 51.169, 71.449, 'Beshbarmak', 'Kazakh and Russian', 'Kazakhstan'],
+  ['Tajine', 'Morocco', 'ma', 34.020, -6.841, 'Tajine', 'Arabic and Berber', 'Morocco'],
+  ['Couscous', 'Algeria', 'dz', 36.754, 3.059, 'Couscous', 'Arabic and Berber', 'Algeria'],
+  ['Lablabi', 'Tunisia', 'tn', 36.806, 10.182, 'Lablabi', 'Arabic', 'Tunisia'],
+  ['Bazeen', 'Libya', 'ly', 32.887, 13.191, 'Bazeen', 'Arabic', 'Libya'],
+  ['Koshary', 'Egypt', 'eg', 30.044, 31.236, 'Koshary', 'Arabic', 'Egypt'],
+  ['Ful medames', 'Sudan', 'sd', 15.501, 32.560, 'Ful medames', 'Arabic and English', 'Sudan'],
+  ['Injera with wat', 'Ethiopia', 'et', 9.030, 38.740, 'Injera', 'Amharic', 'Ethiopia'],
+  ['Jollof rice', 'Nigeria', 'ng', 9.076, 7.399, 'Jollof rice', 'English', 'Nigeria'],
+  ['Fufu', 'Ghana', 'gh', 5.604, -0.187, 'Fufu', 'English', 'Ghana'],
+  ['Thieboudienne', 'Senegal', 'sn', 14.716, -17.467, 'Thieboudienne', 'French and Wolof', 'Senegal'],
+  ['Attiéké', "Côte d'Ivoire", 'ci', 6.828, -5.290, 'Attiéké', 'French', "Côte d'Ivoire"],
+  ['Ndolé', 'Cameroon', 'cm', 3.848, 11.502, 'Ndolé', 'French and English', 'Cameroon'],
+  ['Poulet à la moambe', 'DR Congo', 'cd', -4.441, 15.266, 'Moambe chicken', 'French and Lingala', 'Dem. Rep. Congo'],
+  ['Ugali', 'Kenya', 'ke', -1.292, 36.822, 'Ugali', 'Swahili and English', 'Kenya'],
+  ['Matoke', 'Uganda', 'ug', 0.348, 32.583, 'Matoke', 'English and Swahili', 'Uganda'],
+  ['Sadza', 'Zimbabwe', 'zw', -17.825, 31.034, 'Sadza', 'English and Shona', 'Zimbabwe'],
+  ['Matapa', 'Mozambique', 'mz', -25.969, 32.573, 'Matapa', 'Portuguese', 'Mozambique'],
+  ['Romazava', 'Madagascar', 'mg', -18.879, 47.508, 'Romazava', 'Malagasy and French', 'Madagascar'],
+  ['Bobotie', 'South Africa', 'za', -25.747, 28.229, 'Bobotie', 'Zulu, Xhosa, Afrikaans and English', 'South Africa'],
+  ['Hamburger', 'United States', 'us', 38.907, -77.037, 'Hamburger', 'English', 'United States of America'],
+  ['Poutine', 'Canada', 'ca', 45.421, -75.697, 'Poutine', 'English and French', 'Canada'],
+  ['Mole poblano', 'Mexico', 'mx', 19.433, -99.133, 'Mole poblano', 'Spanish', 'Mexico'],
+  ['Pepián', 'Guatemala', 'gt', 14.634, -90.507, 'Pepián', 'Spanish', 'Guatemala'],
+  ['Pupusa', 'El Salvador', 'sv', 13.693, -89.218, 'Pupusa', 'Spanish', 'El Salvador'],
+  ['Baleada', 'Honduras', 'hn', 14.072, -87.192, 'Baleada', 'Spanish', 'Honduras'],
+  ['Gallo pinto', 'Nicaragua', 'ni', 12.115, -86.236, 'Gallo pinto', 'Spanish', 'Nicaragua'],
+  ['Casado', 'Costa Rica', 'cr', 9.928, -84.091, 'Casado', 'Spanish', 'Costa Rica'],
+  ['Sancocho', 'Panama', 'pa', 8.983, -79.517, 'Sancocho', 'Spanish', 'Panama'],
+  ['Ropa vieja', 'Cuba', 'cu', 23.113, -82.366, 'Ropa vieja', 'Spanish', 'Cuba'],
+  ['Ackee and saltfish', 'Jamaica', 'jm', 17.971, -76.793, 'Ackee and saltfish', 'English', 'Jamaica'],
+  ['Griot', 'Haiti', 'ht', 18.594, -72.307, 'Griot (food)', 'Haitian Creole and French', 'Haiti'],
+  ['Mangú', 'Dominican Republic', 'do', 18.486, -69.931, 'Mangú', 'Spanish', 'Dominican Rep.'],
+  ['Mofongo', 'Puerto Rico', 'pr', 18.466, -66.106, 'Mofongo', 'Spanish and English', 'Puerto Rico'],
+  ['Doubles', 'Trinidad and Tobago', 'tt', 10.654, -61.502, 'Doubles (food)', 'English', 'Trinidad and Tobago'],
+  ['Bandeja paisa', 'Colombia', 'co', 4.711, -74.072, 'Bandeja paisa', 'Spanish', 'Colombia'],
+  ['Pabellón criollo', 'Venezuela', 've', 10.481, -66.904, 'Pabellón criollo', 'Spanish', 'Venezuela'],
+  ['Encebollado', 'Ecuador', 'ec', -0.180, -78.468, 'Encebollado', 'Spanish', 'Ecuador'],
+  ['Ceviche', 'Peru', 'pe', -12.046, -77.043, 'Ceviche', 'Spanish', 'Peru'],
+  ['Salteña', 'Bolivia', 'bo', -16.490, -68.119, 'Salteña', 'Spanish', 'Bolivia'],
+  ['Feijoada', 'Brazil', 'br', -15.794, -47.882, 'Feijoada', 'Portuguese', 'Brazil'],
+  ['Pastel de choclo', 'Chile', 'cl', -33.449, -70.669, 'Pastel de choclo', 'Spanish', 'Chile'],
+  ['Asado', 'Argentina', 'ar', -34.604, -58.382, 'Asado', 'Spanish', 'Argentina'],
+  ['Chivito', 'Uruguay', 'uy', -34.901, -56.164, 'Chivito (sandwich)', 'Spanish', 'Uruguay'],
+  ['Sopa paraguaya', 'Paraguay', 'py', -25.264, -57.576, 'Sopa paraguaya', 'Spanish and Guarani', 'Paraguay'],
+  ['Meat pie', 'Australia', 'au', -35.281, 149.130, 'Meat pie (Australia and New Zealand)', 'English', 'Australia'],
+  ['Hāngī', 'New Zealand', 'nz', -41.286, 174.776, 'Hāngī', 'English and Māori', 'New Zealand'],
+  ['Kokoda', 'Fiji', 'fj', -18.142, 178.442, 'Kokoda (food)', 'English and Fijian', 'Fiji'],
+];
+const dishDailyDone = () => save.dishDaily && save.dishDaily.date === todayKey();
+// the right country is all that matters, so points fall away faster than in Drift
+const dishPoints = (km, maxPts) => km < 1 ? maxPts : Math.round(maxPts * Math.exp(-km / 650));
+
+// the map shape for a dish's country (tiny islands like Singapore aren't on the map, so they just use the capital)
+function dishFeature(p) {
+  return (p[7] && geoWorld && geoWorld.features.find(f => f.properties.name === p[7])) || null;
+}
+// how far a guess is from the dish's country: 0 inside it, otherwise to its nearest edge (or the capital)
+function dishKm(s) {
+  if (s.feat && d3.geoContains(s.feat, s.guess)) return 0;
+  let best = haversine(s.guess, s.ans);
+  if (s.feat) {
+    const g = s.feat.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    for (const poly of polys) for (const ring of poly) for (const pt of ring) best = Math.min(best, haversine(s.guess, pt));
+  }
+  return best < 25 ? 0 : best;
+}
+
+$('btnDishDaily').onclick = () => { if (!dishDailyDone()) startGeo({ seed: hashStr('dish' + todayKey()), daily: true, duel: false, mode: 'dish' }); };
+$('btnDishPractice').onclick = () => startGeo({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false, mode: 'dish' });
+$('btnDishHub').onclick = () => { leaveNet(); showScreen('hub'); };
+$('btnDishHost').onclick = () => hostGame();
+$('btnDishJoin').onclick = () => joinGame();
+$('dishJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+$('cardDish').onclick = () => { currentGame = 'dish'; showScreen('dishMenu'); };
 
 // =====================================================================
 //  Street: drop into a random Google Street View spot and pin it on the map
@@ -2878,7 +3056,7 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
+  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode', dish: 'dishJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
   if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
   if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
@@ -2922,6 +3100,7 @@ function onData(d) {
   } else if (d.t === 'start') {
     if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true, pi: d.pi });
     else if (d.game === 'geo') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks });
+    else if (d.game === 'dish') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks, mode: 'dish' });
     else if (d.game === 'street') startStreet({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks }).then(ok => { if (!ok) toast('You need a Google Maps key for Wander duels'); });
     else startGame({ seed: d.seed, daily: d.daily, duel: true });
   } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
@@ -2946,10 +3125,10 @@ function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
   if (which === 'street') { startStreetDuel(seed, daily); return; }
   const pi = which === 'sort' && !daily ? freshPuzzle() : undefined;
-  const picks = which === 'geo' && !daily ? freshPlaces() : undefined;
+  const picks = daily ? undefined : which === 'geo' ? freshPlaces() : which === 'dish' ? freshPlaces(DISHES.length, 'dishSeen') : undefined;
   send({ t: 'start', seed, daily, game: which, pi, picks });
   if (which === 'sort') startSort({ seed, daily, duel: true, pi });
-  else if (which === 'geo') startGeo({ seed, daily, duel: true, picks });
+  else if (which === 'geo' || which === 'dish') startGeo({ seed, daily, duel: true, picks, mode: which });
   else startGame({ seed, daily, duel: true });
 }
 // the host finds the Street View spots first, then sends them so both players see the same places
@@ -2965,23 +3144,24 @@ async function startStreetDuel(seed, daily) {
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander' };
+  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander', dish: 'Galley' };
   $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
-  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots" }[which];
-  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots' }[which];
+  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots", dish: "Today's menu" }[which];
+  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots', dish: 'Random dishes' }[which];
   $('lobbyHelp').innerHTML = {
     sort: 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>',
     dive: 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>',
     geo: 'Same 5 places for both of you. See where your friend guessed after each one.<br><b>Closest guesses score the most!</b>',
     street: 'You both drop into the same 5 Street View spots. Look around, then pin it.<br><b>Both of you need Street View working (a Google Maps key).</b>',
+    dish: 'Same 5 dishes for both of you. Tap the country each one comes from.<br><b>The right country scores full points!</b>',
   }[which];
 }
 
 // ---------- menus ----------
-const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
 let currentGame = 'dive'; // which game's menu "back" returns to
-const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus' }[currentGame] || 'menuStatus');
-const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu' }[currentGame] || 'menu');
+const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus', dish: 'dishStatus' }[currentGame] || 'menuStatus');
+const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu', dish: 'dishMenu' }[currentGame] || 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -3026,7 +3206,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
@@ -3053,6 +3233,12 @@ function refreshMenu() {
   $('hubGeoStatus').textContent = gd ? `✓ Today's trip: ${save.geoDaily.total.toLocaleString()} pts` : "🌊 Today's trip is ready!";
   const geoStreak = save.geoLast === todayKey() || save.geoLast === yest ? save.geoStreak || 0 : 0;
   $('geoStats').innerHTML = `🔥 Streak ${geoStreak} · Best ${(save.geoBest || 0).toLocaleString()} · ${PLACES.length} places<br>5 places per trip, up to 5,000 points each.<br>Each extra clue lowers the most you can score.`;
+  const dd = dishDailyDone();
+  $('btnDishDaily').textContent = dd ? `Done ✓ ${save.dishDaily.total.toLocaleString()} pts` : "Today's Menu";
+  $('btnDishDaily').disabled = dd;
+  $('hubDishStatus').textContent = dd ? `✓ Today's menu: ${save.dishDaily.total.toLocaleString()} pts` : "🌊 Today's menu is ready!";
+  const dishStreak = save.dishLast === todayKey() || save.dishLast === yest ? save.dishStreak || 0 : 0;
+  $('dishStats').innerHTML = `🔥 Streak ${dishStreak} · Best ${(save.dishBest || 0).toLocaleString()} · ${DISHES.length} dishes<br>5 dishes per meal, up to 5,000 points each.<br>Tap anywhere in the right country for full points.`;
   $('hubSortStatus').textContent = sd ? `✓ Today's puzzle: ${save.sortDaily.found}/4 groups` : "🌊 Today's puzzle is ready!";
   const done = dailyDone();
   $('btnDaily').textContent = done ? `Today's dive done: ${(save.daily.pts * M_PER_PT).toLocaleString()} m ✓` : "Today's Dive";
@@ -3085,9 +3271,9 @@ $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.a
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
-  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' ? geo && geo.duel : game && game.duel;
+  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' || lastMode === 'dish' ? geo && geo.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
-  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice') }[lastMode] || $('btnPractice')).onclick();
+  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice'), dish: $('btnDishPractice') }[lastMode] || $('btnPractice')).onclick();
 };
 $('btnResMenu').onclick = () => { leaveNet(); game = null; goHome(); };
 refreshMenu();
