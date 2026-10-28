@@ -102,36 +102,6 @@
     #geoWrap.street .geomap { position:absolute; right:22px; bottom:80px; width:380px; height:250px; z-index:5; box-shadow:0 10px 40px rgba(0,0,0,.6); transition:width .25s, height .25s; }
     #geoWrap.street .geomap:hover, #geoWrap.street.mapbig .geomap { width:min(62vw, 900px); height:min(62vh, 560px); }
   }
-  /* Pace Notes */
-  #rallyWrap { position:fixed; inset:0; z-index:15; background:#000; overflow:hidden; }
-  #rallyWrap.hidden { display:none; }
-  #rallyCanvas, #rallyNavCanvas { position:absolute; left:0; top:0; width:100%; height:100%; display:none; }
-  #rallyWrap.drive #rallyCanvas { display:block; }
-  #rallyWrap.nav #rallyNavCanvas { display:block; height:calc(100% - 214px - env(safe-area-inset-bottom)); }
-  #rallyHud { position:absolute; top:max(12px, env(safe-area-inset-top)); left:66px; color:#fff; font-weight:700; text-shadow:0 2px 6px #000; pointer-events:none; }
-  #rallyTime { font-size:26px; }
-  #rallyHud .dmg { width:120px; height:6px; background:rgba(255,255,255,.25); border-radius:3px; margin-top:4px; overflow:hidden; }
-  #rallyDmg { height:100%; width:0; background:#ff5a5a; }
-  #rallyMode { font-size:12px; font-weight:400; opacity:.85; margin-top:4px; }
-  #rallyCallBox { position:absolute; top:15%; left:50%; transform:translateX(-50%); font-size:clamp(34px, 8vw, 92px); font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap;
-                  text-shadow:0 4px 18px rgba(0,0,0,.85); pointer-events:none; opacity:0; transition:opacity .12s; }
-  #rallyCallBox.show { opacity:1; }
-  #rallyWrap.nav #rallyCallBox { top:auto; bottom:230px; font-size:34px; }
-  #rallyCount { position:absolute; top:38%; left:0; right:0; text-align:center; font-size:110px; font-weight:700; color:#fff; text-shadow:0 4px 20px #000; pointer-events:none; }
-  #btnRallyExit { position:absolute; top:max(12px, env(safe-area-inset-top)); left:12px; width:44px; height:44px; margin:0; padding:0; border-radius:50%; background:rgba(0,0,0,.45); color:#fff; font-size:18px; border:1px solid rgba(255,255,255,.25); }
-  #rallyTouch { position:absolute; left:0; right:0; bottom:max(16px, env(safe-area-inset-bottom)); display:none; gap:10px; padding:0 14px; }
-  #rallyWrap.drive.touch #rallyTouch { display:flex; }
-  #rallyTouch span { flex:1; }
-  #rallyTouch button { margin:0; width:78px; height:78px; border-radius:18px; background:rgba(255,255,255,.16); color:#fff; font-size:24px; border:1px solid rgba(255,255,255,.3); touch-action:none; }
-  #rallyTouch button[data-k=gas] { background:rgba(95,224,138,.35); font-size:16px; }
-  #rallyTouch button[data-k=brake] { background:rgba(255,90,90,.3); font-size:14px; }
-  #rallyCalls { position:absolute; left:0; right:0; bottom:0; height:calc(214px + env(safe-area-inset-bottom)); display:none; grid-template-columns:repeat(4, 1fr); gap:6px;
-                padding:8px 8px max(8px, env(safe-area-inset-bottom)); background:#0b1626; border-top:1px solid var(--line); }
-  #rallyWrap.nav #rallyCalls { display:grid; }
-  #rallyCalls button { margin:0; padding:4px 2px; font-size:15px; background:rgba(255,255,255,.08); color:var(--ink); border:1px solid var(--line); }
-  #rallyCalls button.hp { background:rgba(255,90,122,.22); }
-  #rallyCalls button.coral { background:var(--coral); color:#fff; }
-  #rallyCalls button.flash { background:var(--cyan); color:#04101f; }
   #gear { position:fixed; top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right)); width:46px; height:46px; margin:0; padding:0; border-radius:50%; font-size:22px; background:rgba(0,0,0,.35); color:#fff; border:1px solid var(--line); z-index:25; }
   #settings { z-index:30; }
   .set-row { display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px; font-size:19px; font-weight:600; }
@@ -259,10 +229,6 @@
       <span class="cicon">🧭</span>
       <span class="ctext"><b>Wander</b><small>Explore real Street View anywhere on Earth, then guess where you are</small><em id="hubStreetStatus"></em></span>
     </button>
-    <button class="card" id="cardRally">
-      <span class="cicon">🏁</span>
-      <span class="ctext"><b>Pace Notes</b><small>Co-op 3D rally: one drives with no map, the other calls the corners</small><em id="hubRallyStatus"></em></span>
-    </button>
     <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
   </div>
 </div>
@@ -308,7 +274,6 @@
     <div id="setBox">
       <label>Questions</label>
       <div class="seg"><button id="setDaily" class="on">Today's set</button><button id="setRandom">Random set</button></div>
-      <div id="roleBox" class="hidden"><label>Your role</label><div class="seg"><button id="roleDrive" class="on">🚗 Driver</button><button id="roleNav">🗺️ Navigator</button></div></div>
     </div>
     <div class="status" id="lobbyStatus">Starting up…</div>
     <button class="coral" id="btnStart" disabled>Start Duel</button>
@@ -372,35 +337,6 @@
     <div class="help" id="streetStats"></div>
     <button class="ghost back" id="btnStreetHub">← All games</button>
   </div>
-</div>
-
-<div id="rallyMenu" class="overlay hidden">
-  <div class="panel">
-    <h1>PACE <span>NOTES</span></h1>
-    <div class="tag">A two-player rally on muddy forest roads.<br>The driver can't see the map. The navigator can't steer. Talk to each other!</div>
-    <button class="coral" id="btnRallyDaily">Today's Stage</button>
-    <button class="ghost" id="btnRallyPractice">Practice (AI co-driver)</button>
-    <div class="divider">— drive with a friend —</div>
-    <button id="btnRallyHost">Host a Rally</button>
-    <div class="row">
-      <div style="flex:1.4"><label for="rallyJoinCode">Friend's code</label><input id="rallyJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
-      <button id="btnRallyJoin">Join</button>
-    </div>
-    <div class="status" id="rallyStatus"></div>
-    <div class="help" id="rallyStats"></div>
-    <button class="ghost back" id="btnRallyHub">← All games</button>
-  </div>
-</div>
-
-<div id="rallyWrap" class="hidden">
-  <canvas id="rallyCanvas"></canvas>
-  <canvas id="rallyNavCanvas"></canvas>
-  <div id="rallyHud"><div id="rallyTime">0:00.0</div><div class="dmg"><div id="rallyDmg"></div></div><div id="rallyMode"></div></div>
-  <div id="rallyCallBox"></div>
-  <div id="rallyCount"></div>
-  <button id="btnRallyExit" title="Quit">✖</button>
-  <div id="rallyTouch"><button data-k="left">◀</button><button data-k="right">▶</button><span></span><button data-k="brake">BRAKE</button><button data-k="gas">GAS</button></div>
-  <div id="rallyCalls"></div>
 </div>
 
 <div id="geoWrap" class="hidden">
@@ -2040,7 +1976,7 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' ? geoShareText() : lastMode === 'rally' ? rallyShareText() : shareText();
+  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' ? geoShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
@@ -2914,531 +2850,6 @@ $('btnSaveKey').onclick = () => {
   refreshMenu();
 };
 
-// =====================================================================
-//  Pace Notes: co-op rally. One drives in 3D with no map, the other reads the map and calls the corners.
-// =====================================================================
-const RALLY_W2 = 3.6; // half the road width in metres
-const RALLY_CALLS = [
-  ['L1', '⬅ Easy left', 'Easy left'], ['R1', 'Easy right ➡', 'Easy right'],
-  ['L2', '⬅ Left', 'Left'], ['R2', 'Right ➡', 'Right'],
-  ['L3', '⬅⬅ Hard left', 'Hard left!'], ['R3', 'Hard right ➡➡', 'Hard right!'],
-  ['HL', '↩ Hairpin left', 'Hairpin left!'], ['HR', 'Hairpin right ↪', 'Hairpin right!'],
-  ['FLAT', '⬆ Flat out', 'Flat out!'], ['SLOW', 'Slow down', 'Slow down!'], ['CAUTION', '⚠ Caution', 'Caution!'], ['BRAKE', '🛑 BRAKE', 'Brake!'],
-];
-const RALLY_SAY = Object.fromEntries(RALLY_CALLS.map(c => [c[0], c[2]]));
-const RALLY_SHOW = { L1: '⬅ EASY LEFT', R1: 'EASY RIGHT ➡', L2: '⬅ LEFT', R2: 'RIGHT ➡', L3: '⬅⬅ HARD LEFT', R3: 'HARD RIGHT ➡➡', HL: '↩ HAIRPIN LEFT', HR: 'HAIRPIN RIGHT ↪', FLAT: '⬆ FLAT OUT', SLOW: 'SLOW DOWN', CAUTION: '⚠ CAUTION', BRAKE: '🛑 BRAKE!' };
-const RALLY_TAG = { L1: 'Easy L', R1: 'Easy R', L2: 'L', R2: 'R', L3: 'Hard L', R3: 'Hard R', HL: 'Hairpin L', HR: 'Hairpin R' };
-const RALLY_COL = { 1: '#5fe08a', 2: '#ffd66b', 3: '#ff9a76', 4: '#ff5a7a' };
-let rally = null, threeLoading = null, rallyRenderer = null, rallyRole = 'drive';
-const rallyDailyDone = () => save.rallyDaily && save.rallyDaily.date === todayKey();
-const angDiff = (a, b) => ((a - b + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-const fmtLap = s => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
-
-function loadThree() {
-  if (window.THREE) return Promise.resolve();
-  if (threeLoading) return threeLoading;
-  threeLoading = new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js';
-    s.onload = res; s.onerror = () => { threeLoading = null; rej(new Error('load')); };
-    document.head.appendChild(s);
-  });
-  return threeLoading;
-}
-
-// ---------- stage: a random winding road, smoothed into 1 m samples, with pace notes ----------
-function sampleSpline(pts, step) {
-  const P = i => pts[Math.max(0, Math.min(pts.length - 1, i))], dense = [];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-    const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 0.5));
-    for (let k = 0; k < n; k++) {
-      const t = k / n, t2 = t * t, t3 = t2 * t;
-      const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-      dense.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
-    }
-  }
-  dense.push(pts[pts.length - 1].slice());
-  const out = [dense[0].slice()];
-  let carry = 0;
-  for (let i = 1; i < dense.length; i++) {
-    const [x0, z0] = dense[i - 1], [x1, z1] = dense[i], seg = Math.hypot(x1 - x0, z1 - z0);
-    if (seg === 0) continue;
-    let d = step - carry;
-    while (d <= seg) { const t = d / seg; out.push([x0 + (x1 - x0) * t, z0 + (z1 - z0) * t]); d += step; }
-    carry = seg - (d - step);
-  }
-  return out;
-}
-
-// some random roads curl into a dead end early; keep trying until the stage is a decent length
-function makeStage(seed) {
-  let best = null;
-  for (let k = 0; k < 8; k++) { const st = makeStageOnce(seed + k * 7919); if (!best || st.N > best.N) best = st; if (st.N >= 1600) break; }
-  return best;
-}
-function makeStageOnce(seed) {
-  const r = rng(seed), ctrl = [[0, 0]];
-  let x = 0, z = 0, h = 0, tries = 0;
-  for (let k = 0; k < 3; k++) { z += 30; ctrl.push([x, z]); }
-  while (ctrl.length < 75 && tries < 5000) {
-    tries++;
-    const roll = r(), dir = r() < 0.5 ? -1 : 1;
-    const turn = roll < 0.3 ? (r() * 2 - 1) * 0.25 : roll < 0.65 ? (0.35 + r() * 0.4) * dir : roll < 0.9 ? (0.8 + r() * 0.5) * dir : (1.7 + r() * 0.5) * dir;
-    const len = Math.abs(turn) > 1.4 ? 26 : 32 + r() * 34;
-    const steps = Math.max(1, Math.ceil(Math.abs(turn) / 0.45)), add = [];
-    let nx = x, nz = z, nh = h, ok = true;
-    for (let s = 0; s < steps; s++) { nh += turn / steps; nx += Math.sin(nh) * len / steps; nz += Math.cos(nh) * len / steps; add.push([nx, nz]); }
-    for (const [ax, az] of add) for (let j = 0; j < ctrl.length - 3; j++) if (Math.hypot(ax - ctrl[j][0], az - ctrl[j][1]) < 55) { ok = false; break; }
-    if (!ok) continue;
-    ctrl.push(...add); x = nx; z = nz; h = nh;
-  }
-  for (let k = 0; k < 3; k++) { x += Math.sin(h) * 30; z += Math.cos(h) * 30; ctrl.push([x, z]); }
-  const pts = sampleSpline(ctrl, 1), N = pts.length, hd = new Float32Array(N);
-  for (let i = 0; i < N; i++) { const a = pts[Math.min(i, N - 2)], b = pts[Math.min(i + 1, N - 1)]; hd[i] = Math.atan2(b[0] - a[0], b[1] - a[1]); }
-  // heading going up = turning left (+x is the driver's left)
-  const turn = new Float32Array(N), W = 12, notes = [];
-  for (let i = 0; i < N; i++) turn[i] = angDiff(hd[Math.min(N - 2, i + W)], hd[Math.max(0, i - W)]);
-  for (let i = 0; i < N;) {
-    if (Math.abs(turn[i]) > 0.3) {
-      const sign = Math.sign(turn[i]);
-      let j = i;
-      while (j < N && Math.sign(turn[j]) === sign && Math.abs(turn[j]) > 0.15) j++;
-      const total = angDiff(hd[Math.min(N - 2, j)], hd[i]), a = Math.abs(total);
-      if (a > 0.35) {
-        const sev = a < 0.7 ? 1 : a < 1.2 ? 2 : a < 1.9 ? 3 : 4, side = total > 0 ? 'L' : 'R';
-        notes.push({ i: Math.max(0, i - 4), sev, code: sev === 4 ? 'H' + side : side + sev });
-      }
-      i = j + 1;
-    } else i++;
-  }
-  // grid of road samples for fast "how far from the road" checks
-  const grid = new Map(), key = (gx, gz) => gx + ',' + gz;
-  pts.forEach(([px, pz], i) => { const k = key(Math.floor(px / 10), Math.floor(pz / 10)); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i); });
-  const roadDist = (px, pz) => {
-    let best = 1e9;
-    const gx = Math.floor(px / 10), gz = Math.floor(pz / 10);
-    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const i of grid.get(key(gx + a, gz + b)) || []) best = Math.min(best, Math.hypot(px - pts[i][0], pz - pts[i][1]));
-    return best;
-  };
-  return { seed, pts, hd, N, notes, roadDist, length: N };
-}
-
-// ---------- 3D world for the driver ----------
-function buildRallyScene(stage, seed) {
-  const T = THREE, scene = new T.Scene(), r = rng(seed + 99);
-  const sky = 0xa9cbe0;
-  scene.background = new T.Color(sky);
-  scene.fog = new T.Fog(sky, 25, 230);
-  scene.add(new T.HemisphereLight(0xdfefff, 0x3b4a22, 0.95));
-  const sun = new T.DirectionalLight(0xfff0d0, 0.75); sun.position.set(120, 220, 60); scene.add(sun);
-  const { pts, hd, N } = stage;
-  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
-  for (const [x, z] of pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
-  const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2, span = Math.max(maxX - minX, maxZ - minZ) + 900;
-  const ground = new T.Mesh(new T.PlaneGeometry(span, span), new T.MeshLambertMaterial({ color: 0x4e6a33 }));
-  ground.rotation.x = -Math.PI / 2; ground.position.set(cx, 0, cz); scene.add(ground);
-
-  // the dirt road: shoulders, edges and two darker wheel ruts
-  const cols = [RALLY_W2 + 1.8, RALLY_W2, 1.3, 0.5, -0.5, -1.3, -RALLY_W2, -(RALLY_W2 + 1.8)];
-  const tint = [[.42, .4, .22], [.52, .4, .25], [.4, .29, .18], [.5, .38, .24], [.5, .38, .24], [.4, .29, .18], [.52, .4, .25], [.42, .4, .22]];
-  const pos = [], col = [], idx = [], C = cols.length;
-  for (let i = 0; i < N; i++) {
-    const [x, z] = pts[i], h = hd[i], lx = Math.cos(h), lz = -Math.sin(h), n = 0.86 + r() * 0.24;
-    cols.forEach((w, c) => { pos.push(x + lx * w, c === 0 || c === C - 1 ? 0.015 : 0.04, z + lz * w); col.push(tint[c][0] * n, tint[c][1] * n, tint[c][2] * n); });
-    if (i > 0) for (let c = 0; c < C - 1; c++) { const a = (i - 1) * C + c, b = i * C + c; idx.push(a, b, a + 1, a + 1, b, b + 1); }
-  }
-  const rg = new T.BufferGeometry();
-  rg.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
-  rg.setAttribute('color', new T.Float32BufferAttribute(col, 3));
-  rg.setIndex(idx); rg.computeVertexNormals();
-  const roadMat = new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide });
-  scene.add(new T.Mesh(rg, roadMat));
-
-  // forest: instanced pine trees, never on the road
-  const TREES = 1100;
-  const cone = new T.InstancedMesh(new T.ConeGeometry(1.9, 7, 7), new T.MeshLambertMaterial({ color: 0xffffff }), TREES);
-  const trunk = new T.InstancedMesh(new T.CylinderGeometry(0.25, 0.32, 2.4, 6), new T.MeshLambertMaterial({ color: 0x5a3e26 }), TREES);
-  const m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), p = new T.Vector3(), c3 = new T.Color();
-  let placed = 0;
-  for (let k = 0; k < TREES * 4 && placed < TREES; k++) {
-    const i = Math.floor(r() * N), side = r() < 0.5 ? 1 : -1, off = RALLY_W2 + 5.6 + Math.pow(r(), 1.6) * 40;
-    const [x, z] = pts[i], h = hd[i], tx = x + Math.cos(h) * off * side, tz = z - Math.sin(h) * off * side;
-    if (stage.roadDist(tx, tz) < RALLY_W2 + 5.4) continue;
-    const s = 0.7 + r() * 0.8;
-    sc.set(s, s, s); p.set(tx, 1.2 * s + 3.5 * s, tz); m.compose(p, q, sc); cone.setMatrixAt(placed, m);
-    c3.setHSL(0.27 + r() * 0.08, 0.45, 0.18 + r() * 0.12); cone.setColorAt(placed, c3);
-    p.set(tx, 1.2 * s, tz); m.compose(p, q, sc); trunk.setMatrixAt(placed, m);
-    placed++;
-  }
-  cone.count = trunk.count = placed;
-  scene.add(cone, trunk);
-
-  // hills on the horizon
-  const hill = new T.MeshLambertMaterial({ color: 0x5f7f4a });
-  for (let k = 0; k < 26; k++) {
-    const a = k / 26 * Math.PI * 2, d = span * 0.45, h2 = 60 + r() * 90;
-    const mesh = new T.Mesh(new T.ConeGeometry(120 + r() * 120, h2, 8), hill);
-    mesh.position.set(cx + Math.cos(a) * d, h2 / 2 - 5, cz + Math.sin(a) * d); scene.add(mesh);
-  }
-
-  // start and finish gates
-  const gate = (i, color) => {
-    const [x, z] = pts[Math.min(i, N - 1)], h = hd[Math.min(i, N - 1)], lx = Math.cos(h), lz = -Math.sin(h);
-    const mat = new T.MeshLambertMaterial({ color });
-    for (const s of [1, -1]) { const post = new T.Mesh(new T.BoxGeometry(0.4, 5, 0.4), mat); post.position.set(x + lx * (RALLY_W2 + 1) * s, 2.5, z + lz * (RALLY_W2 + 1) * s); scene.add(post); }
-    const banner = new T.Mesh(new T.BoxGeometry(RALLY_W2 * 2 + 2.4, 1.1, 0.2), mat);
-    banner.position.set(x, 5, z); banner.rotation.y = h; scene.add(banner);
-  };
-  gate(6, 0x5ad1ff); gate(N - 4, 0xffd66b);
-
-  // the car, seen from the driver's seat (car forward = +z, driver's left = +x)
-  const car = new T.Group();
-  const paint = new T.MeshLambertMaterial({ color: 0x1d8fbf }), stripe = new T.MeshLambertMaterial({ color: 0xff7a3a });
-  const dark = new T.MeshLambertMaterial({ color: 0x1b1d22 }), trim = new T.MeshLambertMaterial({ color: 0x2c2f36 });
-  const add = (g, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new T.Mesh(g, mat); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); car.add(o); return o; };
-  add(new T.BoxGeometry(1.75, 0.22, 1.7), paint, 0, 0.82, 1.75, 0.08);
-  add(new T.BoxGeometry(0.34, 0.23, 1.7), stripe, 0, 0.83, 1.75, 0.08);
-  add(new T.BoxGeometry(1.8, 0.22, 0.55), dark, 0, 0.86, 0.86);
-  add(new T.BoxGeometry(0.46, 0.12, 0.1), trim, 0.36, 0.99, 0.62, -0.4);
-  add(new T.BoxGeometry(1.86, 0.06, 1.3), new T.MeshLambertMaterial({ color: 0x9a9ea8 }), 0, 1.74, -0.15);
-  for (const s of [1, -1]) {
-    add(new T.BoxGeometry(0.07, 0.86, 0.08), trim, 0.88 * s, 1.33, 0.72, -0.62);
-    add(new T.BoxGeometry(0.07, 0.55, 1.7), paint, 0.93 * s, 0.92, 0.05);
-    add(new T.BoxGeometry(0.07, 0.7, 0.07), trim, 0.9 * s, 1.32, -0.6);
-  }
-  add(new T.BoxGeometry(0.26, 0.07, 0.05), dark, 0, 1.64, 0.5);
-  const wheel = add(new T.TorusGeometry(0.17, 0.024, 8, 28), dark, 0.36, 0.97, 0.6, -0.5);
-  wheel.add(new T.Mesh(new T.BoxGeometry(0.32, 0.03, 0.02), dark)); // a spoke, so you can see the wheel turn
-  scene.add(car);
-  const cam = new T.PerspectiveCamera(72, 1, 0.05, 600);
-  cam.rotation.order = 'YXZ'; cam.position.set(0.36, 1.3, -0.12); cam.rotation.set(-0.05, Math.PI, 0);
-  car.add(cam);
-  return { scene, car, cam, wheel };
-}
-
-function disposeScene(scene) {
-  scene.traverse(o => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
-  });
-}
-
-// ---------- sounds: engine hum, crashes, and the co-driver's voice ----------
-function engineStart() {
-  if (!AC) return null;
-  const o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
-  o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = 520; g.gain.value = 0;
-  o.connect(f); o2.connect(f); f.connect(g).connect(sfxBus); o.start(); o2.start();
-  return { o, o2, f, g };
-}
-function engineSet(e, v, gas) {
-  if (!e) return;
-  const t = AC.currentTime, rpm = 42 + Math.abs(v) * 3.1 + (gas ? 14 : 0);
-  e.o.frequency.setTargetAtTime(rpm, t, 0.08); e.o2.frequency.setTargetAtTime(rpm / 2, t, 0.08);
-  e.g.gain.setTargetAtTime(0.035 + Math.min(Math.abs(v), 40) / 40 * 0.05 + (gas ? 0.015 : 0), t, 0.1);
-}
-function engineStop(e) { if (!e) return; e.g.gain.setTargetAtTime(0, AC.currentTime, 0.05); setTimeout(() => { try { e.o.stop(); e.o2.stop(); } catch (x) {} }, 400); }
-function sayCall(text) {
-  if (!save.settings.sfx || !('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 1.25; u.volume = Math.min(1, save.settings.sfxVol / 100 + 0.2);
-  speechSynthesis.speak(u);
-}
-
-function showCall(code, fromFriend) {
-  if (!rally || !RALLY_SAY[code]) return;
-  const box = $('rallyCallBox');
-  box.textContent = RALLY_SHOW[code];
-  box.classList.add('show');
-  rally.callUntil = performance.now() + 1700;
-  tone(fromFriend ? 880 : 660, 0, 0.12, { type: 'triangle', vol: 0.12 });
-  sayCall(RALLY_SAY[code]);
-}
-
-// ---------- start / stop ----------
-async function startRally({ seed, daily, duel, role }) {
-  stopRally(true);
-  role = role === 'nav' ? 'nav' : 'drive';
-  const stage = makeStage(seed);
-  if (role === 'drive') {
-    $(menuStatusId()).textContent = 'Loading 3D…';
-    try { await loadThree(); }
-    catch (e) { $(menuStatusId()).textContent = "Couldn't load the 3D engine. Check your internet."; return; }
-    $(menuStatusId()).textContent = '';
-  }
-  game = null; sort = null; geo = null; lastMode = 'rally'; currentGame = 'rally'; phase = 'rally';
-  const wrap = $('rallyWrap');
-  wrap.classList.toggle('drive', role === 'drive'); wrap.classList.toggle('nav', role === 'nav');
-  wrap.classList.toggle('touch', matchMedia('(pointer: coarse)').matches);
-  showScreen('rallyWrap');
-  const now = performance.now();
-  rally = { seed, daily, duel, role, stage, goAt: now + 3600, last: now, started: false, done: false, t0: 0, time: 0,
-            x: stage.pts[2][0], z: stage.pts[2][1], h: stage.hd[2], vh: stage.hd[2], v: 0, steer: 0, idx: 2, dmg: 0, crashes: 0,
-            keys: {}, nextNote: 0, sendT: 0, shake: 0, lastCount: 4, callUntil: 0, friendLeft: false, countsAsDaily: daily && !rallyDailyDone(),
-            car: { x: stage.pts[2][0], z: stage.pts[2][1], h: stage.hd[2], v: 0, d: 0, i: 2 } };
-  $('rallyMode').textContent = duel ? (role === 'drive' ? `Driving · ${remote ? remote.name : 'friend'} navigates` : `Navigating for ${remote ? remote.name : 'your friend'}`) : 'Solo · AI co-driver';
-  $('rallyCallBox').classList.remove('show');
-  if (role === 'drive') {
-    if (!rallyRenderer) {
-      rallyRenderer = new THREE.WebGLRenderer({ canvas: $('rallyCanvas'), antialias: (window.devicePixelRatio || 1) < 2 });
-      rallyRenderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
-    }
-    rally.world = buildRallyScene(stage, seed);
-    rallySize();
-    rally.engine = engineStart();
-  } else {
-    buildCallButtons();
-  }
-  SFX.dive();
-  rally.raf = requestAnimationFrame(rallyFrame);
-}
-
-function stopRally(silent) {
-  if (!rally) return;
-  cancelAnimationFrame(rally.raf);
-  engineStop(rally.engine);
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
-  if (rally.world) disposeScene(rally.world.scene);
-  rally = null;
-  if (!silent) $('rallyWrap').classList.add('hidden');
-}
-
-function rallySize() {
-  if (!rally) return;
-  if (rally.role === 'drive' && rallyRenderer && rally.world) {
-    rallyRenderer.setSize(innerWidth, innerHeight, false);
-    rally.world.cam.aspect = innerWidth / innerHeight;
-    rally.world.cam.fov = innerWidth < innerHeight ? 88 : 72;
-    rally.world.cam.updateProjectionMatrix();
-  }
-}
-addEventListener('resize', rallySize);
-
-// keyboard + touch controls for the driver
-const RALLY_KEYS = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'gas', w: 'gas', arrowdown: 'brake', s: 'brake', ' ': 'brake' };
-addEventListener('keydown', e => { if (rally && rally.role === 'drive' && RALLY_KEYS[e.key.toLowerCase()]) { rally.keys[RALLY_KEYS[e.key.toLowerCase()]] = true; e.preventDefault(); } });
-addEventListener('keyup', e => { if (rally && RALLY_KEYS[e.key.toLowerCase()]) rally.keys[RALLY_KEYS[e.key.toLowerCase()]] = false; });
-document.querySelectorAll('#rallyTouch button').forEach(b => {
-  const set = v => e => { e.preventDefault(); if (rally) rally.keys[b.dataset.k] = v; };
-  b.addEventListener('pointerdown', set(true)); b.addEventListener('pointerup', set(false));
-  b.addEventListener('pointercancel', set(false)); b.addEventListener('pointerleave', set(false));
-});
-
-function buildCallButtons() {
-  const box = $('rallyCalls');
-  box.innerHTML = '';
-  for (const [code, label] of RALLY_CALLS) {
-    const b = document.createElement('button');
-    b.textContent = label;
-    b.className = code === 'BRAKE' ? 'coral' : /^H/.test(code) ? 'hp' : '';
-    b.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      if (!rally || rally.done) return;
-      send({ t: 'rcall', c: code });
-      b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250);
-      tone(740, 0, 0.08, { type: 'triangle', vol: 0.1 });
-    });
-    box.appendChild(b);
-  }
-}
-
-// ---------- the frame loop ----------
-function rallyFrame(now) {
-  if (!rally) return;
-  rally.raf = requestAnimationFrame(rallyFrame);
-  const dt = Math.min(0.05, (now - rally.last) / 1000);
-  rally.last = now;
-  const tLeft = (rally.goAt - now) / 1000;
-  const cnt = Math.ceil(tLeft);
-  if (tLeft > 0 && cnt !== rally.lastCount) { rally.lastCount = cnt; tone(520, 0, 0.15, { type: 'square', vol: 0.06 }); }
-  $('rallyCount').textContent = tLeft > 0 ? cnt : tLeft > -0.8 ? 'GO!' : '';
-  if (tLeft <= 0 && !rally.started) { rally.started = true; rally.t0 = now; tone(1040, 0, 0.35, { type: 'square', vol: 0.07 }); }
-  if (rally.started && !rally.done) rally.time = (now - rally.t0) / 1000;
-  if (rally.callUntil && now > rally.callUntil) { $('rallyCallBox').classList.remove('show'); rally.callUntil = 0; }
-  if (rally.role === 'drive') { driveStep(dt, now); renderDrive(dt); }
-  else renderNav();
-  $('rallyTime').textContent = fmtLap(rally.role === 'drive' ? rally.time : (rally.car.tm || 0));
-  $('rallyDmg').style.width = Math.min(100, rally.role === 'drive' ? rally.dmg : rally.car.d) + '%';
-}
-
-function driveStep(dt, now) {
-  const R = rally, S = R.stage, k = R.keys;
-  const go = R.started && !R.done;
-  const steerIn = go ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
-  R.steer += (steerIn - R.steer) * Math.min(1, dt * 7);
-  const onRoad = Math.abs(R.lat || 0) <= RALLY_W2 + 0.4;
-  let acc = 0;
-  if (go && k.gas) acc = onRoad ? 10.5 : 6;
-  if (go && k.brake) acc = R.v > 0.5 ? -24 : -4;
-  R.v += acc * dt;
-  R.v -= R.v * (onRoad ? 0.16 : 0.9) * dt;
-  R.v = clamp(R.v, -6, onRoad ? 44 : 19);
-  if (!go) R.v *= 0.9;
-  const yaw = R.steer * 1.85 * clamp(R.v / 9, -1, 1) / (1 + Math.abs(R.v) / 38);
-  R.h += yaw * dt;
-  const grip = onRoad ? 4.6 : 2.4;
-  R.vh += angDiff(R.h, R.vh) * Math.min(1, grip * dt);
-  R.x += Math.sin(R.vh) * R.v * dt;
-  R.z += Math.cos(R.vh) * R.v * dt;
-  // where are we on the road?
-  let best = 1e9, bi = R.idx;
-  for (let i = Math.max(0, R.idx - 25); i < Math.min(S.N, R.idx + 70); i++) {
-    const d = (R.x - S.pts[i][0]) ** 2 + (R.z - S.pts[i][1]) ** 2;
-    if (d < best) { best = d; bi = i; }
-  }
-  R.idx = bi;
-  const hd = S.hd[bi], lx = Math.cos(hd), lz = -Math.sin(hd);
-  R.lat = (R.x - S.pts[bi][0]) * lx + (R.z - S.pts[bi][1]) * lz;
-  // hit the trees
-  if (go && Math.abs(R.lat) > RALLY_W2 + 5.5) {
-    const hit = 7 + Math.abs(R.v) * 1.3;
-    R.dmg += hit; R.crashes++;
-    const side = Math.sign(R.lat);
-    R.x = S.pts[bi][0] + lx * side * (RALLY_W2 + 3.5); R.z = S.pts[bi][1] + lz * side * (RALLY_W2 + 3.5);
-    R.h = R.vh = hd; R.v = 0; R.shake = 1;
-    noise(0, 0.4, 0.6, 900, 120); tone(90, 0, 0.4, { type: 'sawtooth', vol: 0.12, slide: 0.5 });
-    if (R.dmg >= 100) { R.dmg = 100; finishRally(true); }
-  }
-  R.shake = Math.max(0, R.shake - dt * 2.5);
-  // the AI co-driver reads the notes when you're alone
-  if (go && (!R.duel || R.friendLeft || !online())) {
-    while (R.nextNote < S.notes.length && S.notes[R.nextNote].i < R.idx - 5) R.nextNote++;
-    const n = S.notes[R.nextNote];
-    if (n && n.i - R.idx < Math.max(45, R.v * 2.6)) { showCall(n.code, false); R.nextNote++; }
-  }
-  if (go && R.idx >= S.N - 4) finishRally(false);
-  engineSet(R.engine, R.v, k.gas && go);
-  R.sendT -= dt;
-  if (R.duel && R.sendT <= 0) {
-    R.sendT = 1 / 15;
-    send({ t: 'rcar', x: +R.x.toFixed(2), z: +R.z.toFixed(2), h: +R.h.toFixed(3), v: +R.v.toFixed(1), d: Math.round(R.dmg), i: R.idx, tm: +R.time.toFixed(1) });
-  }
-}
-
-function renderDrive(dt) {
-  const R = rally, W = R.world, offRoad = Math.abs(R.lat || 0) > RALLY_W2 + 0.4;
-  W.car.position.set(R.x, 0, R.z);
-  W.car.rotation.y = R.h;
-  W.wheel.rotation.z = -R.steer * 1.7;
-  const bump = Math.min(1, Math.abs(R.v) / 30) * (offRoad ? 0.05 : 0.018) + R.shake * 0.12;
-  W.cam.position.set(0.36 + (Math.random() - 0.5) * bump, 1.3 + (Math.random() - 0.5) * bump, -0.12);
-  W.cam.rotation.z = -R.steer * 0.04 * Math.min(1, Math.abs(R.v) / 20);
-  rallyRenderer.render(W.scene, W.cam);
-}
-
-// the navigator's screen: a heading-up map of the road ahead with every corner marked
-function renderNav() {
-  const cv = $('rallyNavCanvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = cv.clientWidth, h = cv.clientHeight;
-  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
-  const c = cv.getContext('2d'), R = rally, S = R.stage, car = R.car;
-  c.setTransform(dpr, 0, 0, dpr, 0, 0);
-  c.fillStyle = '#16261a'; c.fillRect(0, 0, w, h);
-  const scale = h / 300, cx = w / 2, cy = h * 0.8, fh = car.h;
-  const fx = Math.sin(fh), fz = Math.cos(fh), rx = -Math.cos(fh), rz = Math.sin(fh);
-  const toS = (x, z) => { const dx = x - car.x, dz = z - car.z; return [cx + (dx * rx + dz * rz) * scale, cy - (dx * fx + dz * fz) * scale]; };
-  const from = Math.max(0, car.i - 80), to = Math.min(S.N - 1, car.i + 420);
-  const path = (a, b, col, width) => { c.beginPath(); for (let i = a; i <= b; i++) { const [x, y] = toS(S.pts[i][0], S.pts[i][1]); i === a ? c.moveTo(x, y) : c.lineTo(x, y); } c.strokeStyle = col; c.lineWidth = width; c.lineJoin = c.lineCap = 'round'; c.stroke(); };
-  path(from, to, '#0c140e', (RALLY_W2 * 2 + 4) * scale);
-  path(from, to, '#8a6a44', RALLY_W2 * 2 * scale);
-  if (car.i > from) path(from, car.i, 'rgba(255,255,255,.18)', RALLY_W2 * 2 * scale);
-  // corner badges
-  c.font = '700 14px Fredoka, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  let next = null;
-  for (const n of S.notes) {
-    if (n.i < car.i - 10 || n.i > to) continue;
-    if (!next && n.i >= car.i) next = n;
-    const [x, y] = toS(S.pts[n.i][0], S.pts[n.i][1]), label = RALLY_TAG[n.code], bw = c.measureText(label).width + 16;
-    c.fillStyle = RALLY_COL[n.sev]; c.beginPath(); c.roundRect ? c.roundRect(x - bw / 2, y - 12, bw, 24, 8) : c.rect(x - bw / 2, y - 12, bw, 24); c.fill();
-    c.fillStyle = '#04101f'; c.fillText(label, x, y + 1);
-  }
-  // finish line
-  const [fx2, fy2] = toS(S.pts[S.N - 4][0], S.pts[S.N - 4][1]);
-  if (fy2 > -20) { c.fillStyle = '#ffd66b'; c.fillText('🏁 FINISH', fx2, fy2 - 18); }
-  // the car
-  c.save(); c.translate(cx, cy); c.fillStyle = '#5ad1ff'; c.strokeStyle = '#fff'; c.lineWidth = 2;
-  c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill(); c.stroke(); c.restore();
-  // next corner + speed
-  c.textAlign = 'left'; c.fillStyle = '#eaf6ff'; c.font = '700 20px Fredoka, sans-serif';
-  if (next) c.fillText(`Next: ${RALLY_TAG[next.code]} in ${Math.max(0, next.i - car.i)} m`, 14, h - 46);
-  c.font = '400 15px Fredoka, sans-serif'; c.fillStyle = '#8fb3cc';
-  c.fillText(`${Math.round(Math.abs(car.v) * 3.6)} km/h · ${Math.round(car.i / S.N * 100)}% of the stage`, 14, h - 20);
-  // whole-stage overview in the corner
-  const ow = Math.min(150, w * 0.32), oh = ow, ox = w - ow - 10, oy = 64;
-  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
-  for (let i = 0; i < S.N; i += 10) { const [x, z] = S.pts[i]; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
-  const os = Math.min(ow / (maxX - minX + 1), oh / (maxZ - minZ + 1)) * 0.9;
-  const toO = (x, z) => [ox + ow / 2 - (x - (minX + maxX) / 2) * os, oy + oh / 2 - (z - (minZ + maxZ) / 2) * os];
-  c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(ox, oy, ow, oh);
-  c.beginPath(); for (let i = 0; i < S.N; i += 4) { const [x, y] = toO(S.pts[i][0], S.pts[i][1]); i ? c.lineTo(x, y) : c.moveTo(x, y); }
-  c.strokeStyle = '#c8a070'; c.lineWidth = 2; c.stroke();
-  const [px, py] = toO(car.x, car.z); c.fillStyle = '#5ad1ff'; c.beginPath(); c.arc(px, py, 4, 0, 6.28); c.fill();
-}
-
-function finishRally(wrecked) {
-  const R = rally;
-  if (!R || R.done) return;
-  R.done = true;
-  const res = { time: R.time, dmg: Math.round(R.dmg), crashes: R.crashes, wrecked };
-  if (R.duel) send({ t: 'rend', ...res });
-  engineSet(R.engine, 0, false);
-  if (wrecked) { SFX.lose(); $('rallyCallBox').textContent = '💥 WRECKED'; }
-  else { SFX.win(); $('rallyCallBox').textContent = '🏁 FINISH!'; }
-  $('rallyCallBox').classList.add('show'); R.callUntil = 0;
-  setTimeout(() => showRallyResults(res), 1800);
-}
-
-function showRallyResults(res) {
-  if (!rally) return;
-  const R = rally, role = R.role, daily = R.daily, duel = R.duel, countsAsDaily = R.countsAsDaily;
-  stopRally();
-  phase = 'end';
-  save.played++;
-  if (countsAsDaily) {
-    const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
-    save.rallyStreak = save.rallyLast === yesterday ? (save.rallyStreak || 0) + 1 : 1;
-    save.rallyLast = k;
-    save.rallyDaily = { date: k, time: res.wrecked ? null : res.time };
-  }
-  const newBest = !res.wrecked && (!save.rallyBest || res.time < save.rallyBest);
-  if (newBest) save.rallyBest = res.time;
-  persist();
-  const team = duel ? 'Your team' : 'You';
-  $('resTitle').textContent = res.wrecked ? 'Wrecked! 💥' : newBest ? 'New best time! 🏁' : 'Stage complete! 🏁';
-  $('resGrid').textContent = res.wrecked ? '💥' : '🏁';
-  let html = `<div class="stat"><span>${team} finished in</span><b>${res.wrecked ? 'Did not finish' : fmtLap(res.time)}</b></div>`;
-  html += `<div class="stat"><span>Crashes</span><b>${res.crashes}</b></div>`;
-  html += `<div class="stat"><span>Car damage</span><b>${res.dmg}%</b></div>`;
-  if (duel) html += `<div class="stat"><span>Your role</span><b>${role === 'drive' ? '🚗 Driver' : '🗺️ Navigator'}</b></div>`;
-  if (countsAsDaily) html += `<div class="stat"><span>Pace Notes streak</span><b>🔥 ${save.rallyStreak}</b></div>`;
-  html += `<div class="stat"><span>Best stage time</span><b>${save.rallyBest ? fmtLap(save.rallyBest) : '—'}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
-  $('resStats').innerHTML = html;
-  rallyLastResult = { ...res, daily, duel, role };
-  $('btnAgain').textContent = duel ? 'Next stage (swap seats)' : 'Drive another stage';
-  $('btnAgain').disabled = duel && !online();
-  $('resStatus').textContent = duel && online() ? 'Either of you can start the next stage. Host can swap roles in the lobby.' : '';
-  showScreen('results');
-}
-let rallyLastResult = null;
-function rallyShareText() {
-  const r = rallyLastResult || {};
-  const label = r.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : r.duel ? 'Co-op' : 'Practice';
-  return `🏁 Pace Notes ${label}\n${r.wrecked ? '💥 Wrecked' : '⏱️ ' + fmtLap(r.time || 0)} · ${r.crashes || 0} crashes`;
-}
-
-$('btnRallyExit').onclick = () => { if (rally && rally.duel) send({ t: 'rquit' }); stopRally(); goHome(); };
-$('btnRallyDaily').onclick = () => startRally({ seed: hashStr('rally' + todayKey()), daily: true, duel: false, role: 'drive' });
-$('btnRallyPractice').onclick = () => startRally({ seed: Math.floor(Math.random() * 1e9), daily: false, duel: false, role: 'drive' });
-$('btnRallyHub').onclick = () => { leaveNet(); showScreen('hub'); };
-$('btnRallyHost').onclick = () => hostGame();
-$('btnRallyJoin').onclick = () => joinGame();
-$('rallyJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
-$('cardRally').onclick = () => { currentGame = 'rally'; showScreen('rallyMenu'); };
-$('roleDrive').onclick = () => { rallyRole = 'drive'; $('roleDrive').classList.add('on'); $('roleNav').classList.remove('on'); };
-$('roleNav').onclick = () => { rallyRole = 'nav'; $('roleNav').classList.add('on'); $('roleDrive').classList.remove('on'); };
-
 // ---------- networking (PeerJS, peer to peer) ----------
 let peer = null, conn = null, isHost = false, remote = null, useDailySet = true;
 const wins = { me: 0, them: 0 };
@@ -3467,7 +2878,7 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode', rally: 'rallyJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
+  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
   if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
   if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
@@ -3493,7 +2904,6 @@ function setupConn(c) {
     if (phase === 'ask') tryReveal();
     if (phase === 'sort' && sort && sort.done) setTimeout(showSortResults, 500);
     if (phase === 'geo' && geoState && geoState.locked && !geoState.revealed) geoReveal();
-    if (rally) { if (rally.role === 'nav') { stopRally(); goHome(); } else rally.friendLeft = true; }
     if (!$('lobby').classList.contains('hidden')) { $('lobbyStatus').textContent = isHost ? 'Friend left. Waiting for someone to join…' : 'Host left.'; $('btnStart').disabled = true; }
     if (phase === 'end') $('btnAgain').disabled = game && game.duel;
   });
@@ -3512,24 +2922,11 @@ function onData(d) {
   } else if (d.t === 'start') {
     if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true, pi: d.pi });
     else if (d.game === 'geo') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks });
-    else if (d.game === 'rally') startRally({ seed: d.seed, daily: d.daily, duel: true, role: d.hostRole === 'nav' ? 'drive' : 'nav' });
     else if (d.game === 'street') startStreet({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks }).then(ok => { if (!ok) toast('You need a Google Maps key for Wander duels'); });
     else startGame({ seed: d.seed, daily: d.daily, duel: true });
   } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
     geo.oppGuesses[d.r] = { ll: [+d.lon, +d.lat], km: Math.max(0, +d.km || 0), pts: Math.max(0, Math.min(5000, d.pts | 0)) };
     if (d.r === geo.i && geoState && geoState.locked && !geoState.revealed) geoReveal();
-  } else if (d.t === 'rcar' && rally && rally.role === 'nav') {
-    if ([d.x, d.z, d.h, d.v, d.d, d.i, d.tm].every(n => typeof n === 'number' && isFinite(n))) rally.car = { x: d.x, z: d.z, h: d.h, v: d.v, d: d.d, i: clamp(Math.round(d.i), 0, rally.stage.N - 1), tm: d.tm };
-  } else if (d.t === 'rcall' && rally && rally.role === 'drive' && !rally.done) {
-    showCall(String(d.c), true);
-  } else if (d.t === 'rend' && rally && rally.role === 'nav' && !rally.done) {
-    rally.done = true;
-    const res = { time: +d.time || 0, dmg: d.dmg | 0, crashes: d.crashes | 0, wrecked: !!d.wrecked };
-    (res.wrecked ? SFX.lose : SFX.win)();
-    setTimeout(() => showRallyResults(res), 1200);
-  } else if (d.t === 'rquit' && rally) {
-    toast((remote ? remote.name : 'Your friend') + ' left the stage');
-    if (rally.role === 'nav') { stopRally(); goHome(); } else rally.friendLeft = true;
   } else if (d.t === 'sprog' && sort && sort.duel && d.sd === sort.seed) {
     Object.assign(sort.opp, { found: (d.found || []).map(t => t | 0), air: d.air | 0, done: !!d.done, time: +d.time || 0, mistakes: d.mistakes | 0 });
     if (phase === 'sort') renderSort();
@@ -3548,7 +2945,6 @@ let lobbyGame = 'dive';
 function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
   if (which === 'street') { startStreetDuel(seed, daily); return; }
-  if (which === 'rally') { send({ t: 'start', seed, daily, game: 'rally', hostRole: rallyRole }); startRally({ seed, daily, duel: true, role: rallyRole }); return; }
   const pi = which === 'sort' && !daily ? freshPuzzle() : undefined;
   const picks = which === 'geo' && !daily ? freshPlaces() : undefined;
   send({ t: 'start', seed, daily, game: which, pi, picks });
@@ -3569,25 +2965,23 @@ async function startStreetDuel(seed, daily) {
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander', rally: 'Pace Notes' };
-  $('roleBox').classList.toggle('hidden', which !== 'rally');
-  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} ${which === 'rally' ? 'rally' : 'duel'}`);
-  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots", rally: "Today's stage" }[which];
-  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots', rally: 'Random stage' }[which];
+  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander' };
+  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
+  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots" }[which];
+  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots' }[which];
   $('lobbyHelp').innerHTML = {
     sort: 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>',
     dive: 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>',
     geo: 'Same 5 places for both of you. See where your friend guessed after each one.<br><b>Closest guesses score the most!</b>',
     street: 'You both drop into the same 5 Street View spots. Look around, then pin it.<br><b>Both of you need Street View working (a Google Maps key).</b>',
-    rally: 'One of you drives in 3D with no map. The other sees the map and calls every corner.<br><b>Jump on a voice call so you can shout too!</b>',
   }[which];
 }
 
 // ---------- menus ----------
-const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'rallyMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap', 'rallyWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
 let currentGame = 'dive'; // which game's menu "back" returns to
-const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus', rally: 'rallyStatus' }[currentGame] || 'menuStatus');
-const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu', rally: 'rallyMenu' }[currentGame] || 'menu');
+const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus' }[currentGame] || 'menuStatus');
+const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu' }[currentGame] || 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -3632,7 +3026,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'rallyMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
@@ -3645,12 +3039,6 @@ function refreshMenu() {
   $('sortStats').innerHTML = `🔥 Streak ${sortStreak} · ${SORT_PUZZLES.length} puzzles<br>` +
     SORT_TIERS.map(t => `${t.emoji} ${t.name}`).join(' · ') + '<br>📡 Sonar reveals one group name (once per puzzle)';
   $('hubDiveStatus').textContent = dailyDone() ? `✓ Today's dive: ${(save.daily.pts * M_PER_PT).toLocaleString()} m` : "🌊 Today's dive is ready!";
-  const rd = rallyDailyDone();
-  $('btnRallyDaily').textContent = rd ? (save.rallyDaily.time ? `Done ✓ ${fmtLap(save.rallyDaily.time)}` : 'Done ✓ (wrecked!)') : "Today's Stage";
-  $('btnRallyDaily').disabled = rd;
-  $('hubRallyStatus').textContent = rd ? "✓ Today's stage done" : "🌊 Today's stage is ready!";
-  const rStreak = save.rallyLast === todayKey() || save.rallyLast === yest ? save.rallyStreak || 0 : 0;
-  $('rallyStats').innerHTML = `🔥 Streak ${rStreak} · Best ${save.rallyBest ? fmtLap(save.rallyBest) : '—'}<br>Drive: arrow keys or WASD (Space = brake), or the buttons on a phone.<br>Navigate: tap the call buttons. They pop up and get read out to the driver.`;
   const std = streetDailyDone();
   $('btnStreetDaily').textContent = std ? `Done ✓ ${save.streetDaily.total.toLocaleString()} pts` : "Today's Spots";
   $('btnStreetDaily').disabled = std;
@@ -3697,11 +3085,9 @@ $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.a
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
-  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' ? geo && geo.duel : lastMode === 'rally' ? rallyLastResult && rallyLastResult.duel : game && game.duel;
-  // in co-op rally, whoever starts the next stage takes the other seat, so you swap roles
-  if (duel && lastMode === 'rally' && rallyLastResult) rallyRole = rallyLastResult.role === 'drive' ? 'nav' : 'drive';
+  const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' ? geo && geo.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
-  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice'), rally: $('btnRallyPractice') }[lastMode] || $('btnPractice')).onclick();
+  else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice') }[lastMode] || $('btnPractice')).onclick();
 };
 $('btnResMenu').onclick = () => { leaveNet(); game = null; goHome(); };
 refreshMenu();
@@ -4083,7 +3469,7 @@ function loop(now) {
     revealTimer -= dt;
     if (revealTimer <= 0) { game.i++; askQuestion(); }
   }
-  if (phase !== 'rally') render(dt, now);
+  render(dt, now);
   if (!$('custom').classList.contains('hidden')) drawPreview(now);
   requestAnimationFrame(loop);
 }
