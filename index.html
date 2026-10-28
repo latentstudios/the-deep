@@ -171,6 +171,9 @@
   .grid { font-size:26px; letter-spacing:3px; text-align:center; margin:8px 0; white-space:pre-line; line-height:1.2; }
   #toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--line); padding:10px 18px; border-radius:12px; font-size:16px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:10; }
   #toast.show { opacity:1; }
+  #oppBadge { position:fixed; top:max(12px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%) scale(.9); background:var(--cyan); color:#04101f; font-weight:700;
+              padding:8px 16px; border-radius:999px; font-size:15px; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; z-index:30; white-space:nowrap; box-shadow:0 6px 20px rgba(0,0,0,.4); }
+  #oppBadge.show { opacity:1; transform:translateX(-50%) scale(1); }
   /* phones */
   @media (max-width:600px) {
     #menu, #hub, #sortMenu, #lobby, #results, #custom, #sortWrap { padding-top:max(68px, calc(env(safe-area-inset-top) + 56px)); }
@@ -407,6 +410,7 @@
 </div>
 
 <div id="toast"></div>
+<div id="oppBadge"></div>
 <button id="gear" title="Settings">⚙️</button>
 
 <div id="settings" class="overlay hidden">
@@ -1875,6 +1879,7 @@ function startGame({ seed, daily, duel }) {
 }
 
 function askQuestion() {
+  oppChose(false);
   if (game.i >= NQ) return endGame();
   phase = 'ask';
   game.locked = null; game.tries = [];
@@ -1925,6 +1930,7 @@ function tryReveal() {
 }
 
 function reveal() {
+  oppChose(false);
   phase = 'reveal';
   const ci = game.cats[game.i];
   const mine = game.locked;
@@ -2517,6 +2523,7 @@ async function startGeo({ seed, daily, duel, picks, mode = 'geo' }) {
 }
 
 function geoRound() {
+  oppChose(false);
   if (geo.mode === 'street') {
     const spot = geo.spots[geo.i];
     geoState = { p: null, spot, ans: [spot.lng, spot.lat], clues: 1, guess: null, locked: false, revealed: false };
@@ -2645,6 +2652,7 @@ function geoReveal() {
   const s = geoState;
   if (!s || s.revealed) return;
   s.revealed = true;
+  oppChose(false);
   const p = s.p, opp = geo.duel ? geo.oppGuesses[geo.i] : null, street = geo.mode === 'street', dish = geo.mode === 'dish';
   if (street) $('geoWrap').classList.add('mapbig');
   geo.total += s.pts;
@@ -3106,12 +3114,14 @@ function onData(d) {
   } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
     geo.oppGuesses[d.r] = { ll: [+d.lon, +d.lat], km: Math.max(0, +d.km || 0), pts: Math.max(0, Math.min(5000, d.pts | 0)) };
     if (d.r === geo.i && geoState && geoState.locked && !geoState.revealed) geoReveal();
+    else if (d.r === geo.i && geoState && !geoState.locked) oppChose(true);
   } else if (d.t === 'sprog' && sort && sort.duel && d.sd === sort.seed) {
     Object.assign(sort.opp, { found: (d.found || []).map(t => t | 0), air: d.air | 0, done: !!d.done, time: +d.time || 0, mistakes: d.mistakes | 0 });
     if (phase === 'sort') renderSort();
     if (sort.opp.done && sort.done) setTimeout(showSortResults, 900);
   } else if (d.t === 'lock' && game && d.sd === game.seed) {
     game.oppLocks[d.q] = { canon: d.canon, tier: d.tier | 0 };
+    if (d.q === game.i && phase === 'ask' && !game.locked) oppChose(true);
     if (d.q === game.i) tryReveal();
   }
 }
@@ -3206,8 +3216,13 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { oppChose(false); for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
+// in a duel: shows when your friend has answered this round, until the round ends
+function oppChose(on) {
+  $('oppBadge').classList.toggle('show', !!on);
+  if (on) { $('oppBadge').textContent = `✅ ${remote ? remote.name : 'Friend'} has chosen!`; SFX.bubble(); }
+}
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
 
 function refreshMenu() {
