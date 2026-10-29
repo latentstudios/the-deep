@@ -115,6 +115,10 @@
   input[type=range] { padding:0; border:none; background:none; accent-color:var(--cyan); height:28px; }
   .vol { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
   .vol span { width:40px; text-align:right; }
+  .weather { display:inline-flex; align-items:center; gap:8px; width:auto; margin:10px auto 2px; padding:7px 14px; font-size:14px; font-weight:600;
+             background:rgba(255,255,255,.07); color:var(--ink); border:1px solid var(--line); border-radius:999px; }
+  .weather small { color:var(--muted); font-weight:400; }
+  .wxrow { text-align:center; }
   .card { display:flex; align-items:center; gap:14px; text-align:left; padding:16px; margin-top:12px; background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:16px; }
   @media (hover:hover) { .card:hover { background:rgba(90,209,255,.12); border-color:var(--cyan); filter:none; } }
   .cicon { font-size:44px; line-height:1; flex:none; }
@@ -215,6 +219,7 @@
   <div class="panel hubpanel">
     <h1>THE <span>DEEP</span></h1>
     <div class="tag">Pick a game to dive into</div>
+    <div class="wxrow"><button class="weather" id="weather">🌤️ Show my weather</button></div>
     <label for="hubName">Your name</label>
     <input id="hubName" maxlength="12">
     <button class="card" id="cardDive">
@@ -226,16 +231,12 @@
       <span class="ctext"><b>Shoal Sort</b><small>Find the 4 hidden groups of 4 words</small><em id="hubSortStatus"></em></span>
     </button>
     <button class="card" id="cardGeo">
-      <span class="cicon">🌍</span>
-      <span class="ctext"><b>Drift</b><small>Your krill drifted off. Find where in the world it is!</small><em id="hubGeoStatus"></em></span>
+      <span class="cicon">🍾</span>
+      <span class="ctext"><b>Flotsam</b><small>Photos of places and plates wash up from around the world. Where are they from?</small><em id="hubGeoStatus"></em></span>
     </button>
     <button class="card" id="cardStreet">
       <span class="cicon">🧭</span>
       <span class="ctext"><b>Wander</b><small>Explore real Street View anywhere on Earth, then guess where you are</small><em id="hubStreetStatus"></em></span>
-    </button>
-    <button class="card" id="cardDish">
-      <span class="cicon">🍲</span>
-      <span class="ctext"><b>Galley</b><small>One photo of a national dish. Which country is it from?</small><em id="hubDishStatus"></em></span>
     </button>
     <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
   </div>
@@ -306,8 +307,9 @@
 
 <div id="geoMenu" class="overlay hidden">
   <div class="panel">
-    <h1>DR<span>IFT</span></h1>
-    <div class="tag">Your krill has drifted somewhere in the world.<br>Use the photo and clues, then tap the map to find it.</div>
+    <h1>FLOT<span>SAM</span></h1>
+    <div class="seg"><button data-mode="geo" class="on">📸 Places</button><button data-mode="dish">🍲 Food</button></div>
+    <div class="tag">Places: a photo of somewhere in the world washed up.<br>Use the photo and clues, then tap the map to find it.</div>
     <button class="coral" id="btnGeoDaily">Today's Trip</button>
     <button class="ghost" id="btnGeoPractice">Practice Trip</button>
     <div class="divider">— duel a friend —</div>
@@ -324,8 +326,9 @@
 
 <div id="dishMenu" class="overlay hidden">
   <div class="panel">
-    <h1>GAL<span>LEY</span></h1>
-    <div class="tag">The ship's cook made a country's national dish.<br>Look at the photo, then tap the country it comes from.</div>
+    <h1>FLOT<span>SAM</span></h1>
+    <div class="seg"><button data-mode="geo">📸 Places</button><button data-mode="dish" class="on">🍲 Food</button></div>
+    <div class="tag">Food: a photo of a country's national dish washed up.<br>Tap the country it comes from on the map.</div>
     <button class="coral" id="btnDishDaily">Today's Menu</button>
     <button class="ghost" id="btnDishPractice">Practice Meal</button>
     <div class="divider">— duel a friend —</div>
@@ -2325,7 +2328,7 @@ fitViewport();
 $('qInput').addEventListener('focus', () => setTimeout(() => { fitViewport(); $('qInput').scrollIntoView({ block: 'nearest' }); }, 250));
 
 // =====================================================================
-//  Drift: your krill drifted somewhere in the world - find it on the map
+//  Flotsam's Places mode: a photo of somewhere in the world - find it on the map
 // =====================================================================
 // [place, country, flag code, lat, lon, Wikipedia article for the photo, language, known for, fun fact]
 const PLACES = [
@@ -2689,7 +2692,7 @@ function geoResults() {
   const grid = geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('');
   const best = Math.min(...geo.rounds.map(r => r.km));
   const pre = geo.mode === 'street' || geo.mode === 'dish' ? geo.mode : 'geo';
-  const gameName = { street: 'Wander', dish: 'Galley', geo: 'Drift' }[pre];
+  const gameName = { street: 'Wander', dish: 'Flotsam Food', geo: 'Flotsam Places' }[pre];
   save.played++;
   if (geo.countsAsDaily) {
     const k = todayKey(), yesterday = new Date(Date.parse(k) - 86400000).toISOString().slice(0, 10);
@@ -2701,7 +2704,7 @@ function geoResults() {
   if (newBest) save[pre + 'Best'] = geo.total;
   let title = pre === 'dish'
     ? (geo.total >= 20000 ? 'Master chef! 👨‍🍳' : geo.total >= 12000 ? 'Great taste! 🍲' : 'Meal finished!')
-    : geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? (pre === 'street' ? 'Great wandering! 🧭' : 'Great drifting! 🐠') : 'Trip complete!';
+    : geo.total >= 20000 ? 'World explorer! 🌍' : geo.total >= 12000 ? (pre === 'street' ? 'Great wandering! 🧭' : 'Great beachcombing! 🐚') : 'Trip complete!';
   let html = `<div class="stat"><span>Score</span><b>${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()}</b></div>`;
   html += pre === 'dish'
     ? `<div class="stat"><span>Right countries</span><b>${geo.rounds.filter(r => r.km < 1).length} / ${GEO_ROUNDS}</b></div>`
@@ -2728,7 +2731,7 @@ function geoResults() {
 
 function geoShareText() {
   const label = geo.daily ? 'Daily #' + dayNumber(todayKey()) % 10000 : geo.duel ? 'Duel' : 'Practice';
-  return `${{ street: '🧭 Wander', dish: '🍲 Galley' }[geo.mode] || '🌍 Drift'} ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
+  return `${{ street: '🧭 Wander', dish: '🍲 Flotsam Food' }[geo.mode] || '📸 Flotsam Places'} ${label}\n${geo.rounds.map(r => TIER_EMOJI[geoTier(r.pts)]).join('')}\n${geo.total.toLocaleString()} / ${(GEO_ROUNDS * 5000).toLocaleString()} pts`;
 }
 
 $('btnClue').onclick = () => { if (geoState && !geoState.locked && geoState.clues < (geoState.maxClues || CLUE_MAX.length)) { geoState.clues++; SFX.bubbles(3); renderClues(); } };
@@ -2739,7 +2742,7 @@ $('btnGeoHub').onclick = () => { leaveNet(); showScreen('hub'); };
 $('btnGeoHost').onclick = () => hostGame();
 $('btnGeoJoin').onclick = () => joinGame();
 $('geoJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
-$('cardGeo').onclick = () => { currentGame = 'geo'; showScreen('geoMenu'); };
+$('cardGeo').onclick = () => openFlotsam(save.flotsamMode === 'dish' ? 'dish' : 'geo');
 // redraw whenever the map box changes size (window resize, photo loading, phone keyboard, rotation)
 let geoBox = '';
 new ResizeObserver(() => {
@@ -2750,7 +2753,7 @@ new ResizeObserver(() => {
 }).observe($('geoMap'));
 
 // =====================================================================
-//  Galley: guess the country from a photo of its national dish
+//  Flotsam's Food mode: guess the country from a photo of its national dish
 // =====================================================================
 // [dish, country, flag code, capital lat, capital lon, Wikipedia article for the photo, language, country name on the map]
 const DISHES = [
@@ -2893,7 +2896,12 @@ $('btnDishHub').onclick = () => { leaveNet(); showScreen('hub'); };
 $('btnDishHost').onclick = () => hostGame();
 $('btnDishJoin').onclick = () => joinGame();
 $('dishJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
-$('cardDish').onclick = () => { currentGame = 'dish'; showScreen('dishMenu'); };
+// Flotsam's two modes: Places and Food; it remembers the last one you played
+function openFlotsam(mode) {
+  currentGame = mode; save.flotsamMode = mode; persist();
+  showScreen(mode === 'dish' ? 'dishMenu' : 'geoMenu');
+}
+document.querySelectorAll('[data-mode]').forEach(b => { b.onclick = () => openFlotsam(b.dataset.mode); });
 
 // =====================================================================
 //  Street: drop into a random Google Street View spot and pin it on the map
@@ -3154,7 +3162,7 @@ async function startStreetDuel(seed, daily) {
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Drift', street: 'Wander', dish: 'Galley' };
+  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Flotsam Places', street: 'Wander', dish: 'Flotsam Food' };
   $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
   $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots", dish: "Today's menu" }[which];
   $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots', dish: 'Random dishes' }[which];
@@ -3251,7 +3259,6 @@ function refreshMenu() {
   const dd = dishDailyDone();
   $('btnDishDaily').textContent = dd ? `Done ✓ ${save.dishDaily.total.toLocaleString()} pts` : "Today's Menu";
   $('btnDishDaily').disabled = dd;
-  $('hubDishStatus').textContent = dd ? `✓ Today's menu: ${save.dishDaily.total.toLocaleString()} pts` : "🌊 Today's menu is ready!";
   const dishStreak = save.dishLast === todayKey() || save.dishLast === yest ? save.dishStreak || 0 : 0;
   $('dishStats').innerHTML = `🔥 Streak ${dishStreak} · Best ${(save.dishBest || 0).toLocaleString()} · ${DISHES.length} dishes<br>5 dishes per meal, up to 5,000 points each.<br>Tap anywhere in the right country for full points.`;
   $('hubSortStatus').textContent = sd ? `✓ Today's puzzle: ${save.sortDaily.found}/4 groups` : "🌊 Today's puzzle is ready!";
@@ -3270,6 +3277,45 @@ for (const id of ['name', 'hubName']) {
     for (const other of ['name', 'hubName']) if (other !== id) $(other).value = $(id).value;
   });
 }
+// ---------- weather where you are (Open-Meteo, no key needed) ----------
+const WX_CODES = [
+  [[0], '☀️', 'Clear'], [[1], '🌤️', 'Mostly clear'], [[2], '⛅', 'Partly cloudy'], [[3], '☁️', 'Cloudy'],
+  [[45, 48], '🌫️', 'Foggy'], [[51, 53, 55, 56, 57], '🌦️', 'Drizzle'], [[61, 63, 65, 66, 67], '🌧️', 'Rain'],
+  [[71, 73, 75, 77], '🌨️', 'Snow'], [[80, 81, 82], '🌦️', 'Showers'], [[85, 86], '🌨️', 'Snow showers'], [[95, 96, 99], '⛈️', 'Thunderstorm'],
+];
+function showWeather(w) {
+  const [, icon, words] = WX_CODES.find(([codes]) => codes.includes(w.code)) || [[], '🌡️', ''];
+  const night = !w.day && w.code <= 1 ? '🌙' : icon;
+  $('weather').innerHTML = `${night} ${Math.round(w.temp)}°C <small>${esc(words)}${w.place ? ' · ' + esc(w.place) : ''}</small>`;
+  $('weather').title = `Wind ${Math.round(w.wind)} km/h · tap to refresh`;
+}
+async function loadWeather() {
+  $('weather').textContent = '🌤️ Checking the weather…';
+  try {
+    const pos = await new Promise((ok, fail) => navigator.geolocation.getCurrentPosition(ok, fail, { timeout: 12000, maximumAge: 30 * 60000 }));
+    // rounded to about 1 km: enough for the weather, without sending your exact spot
+    const lat = pos.coords.latitude.toFixed(2), lon = pos.coords.longitude.toFixed(2);
+    const [wx, where] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day,wind_speed_10m&timezone=auto`).then(r => r.json()),
+      fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`).then(r => r.json()).catch(() => ({})),
+    ]);
+    const c = wx.current;
+    save.wx = { at: Date.now(), temp: c.temperature_2m, code: c.weather_code, day: c.is_day, wind: c.wind_speed_10m, place: where.city || where.locality || where.principalSubdivision || '' };
+    save.weatherOn = true; persist();
+    showWeather(save.wx);
+  } catch (e) {
+    const denied = e && e.code === 1;
+    if (denied) { save.weatherOn = false; persist(); }
+    $('weather').textContent = denied ? '📍 Allow location to see your weather' : "🌤️ Couldn't get the weather · tap to retry";
+  }
+}
+$('weather').onclick = loadWeather;
+if (!navigator.geolocation) $('weather').classList.add('hidden');
+else if (save.weatherOn) {
+  if (save.wx && Date.now() - save.wx.at < 20 * 60000) showWeather(save.wx); // fresh enough, don't ask again
+  else loadWeather();
+}
+
 $('cardDive').onclick = () => { currentGame = 'dive'; showScreen('menu'); };
 $('cardSort').onclick = () => { currentGame = 'sort'; showScreen('sortMenu'); };
 $('btnDiveHub').onclick = $('btnSortHub').onclick = () => { leaveNet(); showScreen('hub'); };
