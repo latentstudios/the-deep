@@ -90,6 +90,33 @@
     .geophoto img { max-height:40vh; }
     .geobar { grid-column:2; }
   }
+  /* Blind Sub */
+  #subWrap { position:fixed; inset:0; background:#01060d; overflow:hidden; }
+  #subWrap.hidden { display:none; }
+  #subWrap canvas { position:absolute; inset:0; width:100%; height:100%; }
+  #subView, #sonarCv { display:none; }
+  #subWrap.pilot #subView { display:block; position:absolute; inset:0; }
+  #subWrap.sonar #sonarCv { display:block; }
+  #subWrap.solo #sonarCv { display:block; inset:auto; right:12px; top:64px; width:min(240px, 38vw); height:min(240px, 38vw); border-radius:50%; border:2px solid rgba(93,255,176,.4); box-shadow:0 0 30px rgba(0,0,0,.8); }
+  #subView::after { content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.75) 80%, #000 100%); }
+  #subView.boom::after, #sonarCv.boom { background:rgba(255,80,60,.35); }
+  .subhud { position:absolute; left:12px; top:max(12px, env(safe-area-inset-top)); right:70px; display:flex; flex-wrap:wrap; gap:6px; z-index:5; pointer-events:none; }
+  .subhud span { background:rgba(4,16,31,.75); border:1px solid var(--line); border-radius:999px; padding:5px 11px; font-size:14px; font-weight:600; }
+  .submsg { position:absolute; left:0; right:0; top:42%; text-align:center; color:var(--muted); font-size:18px; pointer-events:none; text-shadow:0 2px 6px #000; }
+  .subcall { position:absolute; left:50%; top:30%; transform:translate(-50%, -50%) scale(.6); font-size:84px; text-align:center; opacity:0; pointer-events:none; text-shadow:0 4px 20px #000; z-index:6; }
+  .subcall b { display:block; font-size:34px; letter-spacing:1px; }
+  .subcall.show { animation:subcall 1.6s ease-out forwards; }
+  @keyframes subcall { 0% { opacity:0; transform:translate(-50%, -50%) scale(.6); } 10% { opacity:1; transform:translate(-50%, -50%) scale(1.08); } 20% { transform:translate(-50%, -50%) scale(1); } 75% { opacity:1; } 100% { opacity:0; } }
+  .subcalls { display:none; position:absolute; right:12px; bottom:max(12px, env(safe-area-inset-bottom)); width:min(360px, calc(100% - 24px)); grid-template-columns:repeat(4, 1fr); gap:6px; z-index:5; }
+  #subWrap.sonar .subcalls { display:grid; }
+  .subcalls button { margin:0; padding:8px 2px; font-size:24px; line-height:1.1; background:rgba(4,30,36,.85); border:1px solid rgba(93,255,176,.35); color:var(--ink); }
+  .subcalls button small { display:block; font-size:11px; color:var(--muted); }
+  .subcalls button.sent { background:rgba(93,255,176,.4); }
+  .subpad { display:none; position:absolute; left:0; right:0; bottom:max(12px, env(safe-area-inset-bottom)); padding:0 12px; justify-content:space-between; z-index:5; pointer-events:none; }
+  .subpad div { display:grid; grid-template-columns:repeat(2, 64px); gap:8px; pointer-events:auto; }
+  .subpad button { margin:0; width:64px; height:64px; padding:0; font-size:24px; border-radius:50%; background:rgba(4,16,31,.6); border:1px solid var(--line); color:var(--ink); touch-action:none; }
+  @media (pointer:coarse) { #subWrap.pilot .subpad { display:flex; } }
+  .subquit { position:absolute; left:12px; top:calc(max(12px, env(safe-area-inset-top)) + 44px); width:auto; margin:0; padding:6px 12px; font-size:14px; z-index:5; }
   /* Wander (Street View mode of the Drift screen) */
   .streetpano { display:none; border-radius:16px; overflow:hidden; background:#000; border:1px solid var(--line); }
   .streetonly { display:none; }
@@ -238,7 +265,11 @@
       <span class="cicon">🧭</span>
       <span class="ctext"><b>Wander</b><small>Explore real Street View anywhere on Earth, then guess where you are</small><em id="hubStreetStatus"></em></span>
     </button>
-    <div class="help">Every game has a daily challenge, practice mode and duels with a friend.</div>
+    <button class="card" id="cardSub">
+      <span class="cicon">🔦</span>
+      <span class="ctext"><b>Blind Sub</b><small>Co-op for two: one steers a sub through a pitch-black trench, the other reads the sonar</small><em id="hubSubStatus"></em></span>
+    </button>
+    <div class="help">Play on your own every day, or grab a friend for a duel or a co-op dive.</div>
   </div>
 </div>
 
@@ -281,7 +312,7 @@
       <div class="code" id="codeText">····</div>
     </div>
     <div id="setBox">
-      <label>Questions</label>
+      <label id="setLabel">Questions</label>
       <div class="seg"><button id="setDaily" class="on">Today's set</button><button id="setRandom">Random set</button></div>
     </div>
     <div class="status" id="lobbyStatus">Starting up…</div>
@@ -366,6 +397,38 @@
     <div class="help" id="streetStats"></div>
     <button class="ghost back" id="btnStreetHub">← All games</button>
   </div>
+</div>
+
+<div id="subMenu" class="overlay hidden">
+  <div class="panel">
+    <h1>BLIND <span>SUB</span></h1>
+    <div class="tag">A co-op dive for two. The 🎮 pilot steers through a pitch-black trench and can barely see.<br>The 📡 sonar sees the whole map, mines and all, and calls out where to go.</div>
+    <button class="coral" id="btnSubHost">Host a Dive</button>
+    <div class="row">
+      <div style="flex:1.4"><label for="subJoinCode">Friend's code</label><input id="subJoinCode" maxlength="4" placeholder="ABCD" style="text-transform:uppercase; letter-spacing:4px"></div>
+      <button id="btnSubJoin">Join</button>
+    </div>
+    <div class="divider">— on your own —</div>
+    <button class="ghost" id="btnSubSolo">Solo practice (with a mini sonar)</button>
+    <div class="status" id="subStatus"></div>
+    <div class="help" id="subStats"></div>
+    <div class="help">🎮 Pilot: W / S thrust, A / D turn, Space up, Shift down (or arrow keys, E / Q).<br>📡 Sonar: tap the call buttons or press 1–8 (arrow keys work too). Talk on Discord as well!</div>
+    <button class="ghost back" id="btnSubHub">← All games</button>
+  </div>
+</div>
+
+<div id="subWrap" class="hidden">
+  <div id="subView"></div>
+  <canvas id="sonarCv"></canvas>
+  <div class="subhud" id="subHud"></div>
+  <div class="submsg" id="subMsg"></div>
+  <div class="subcall" id="subCall"></div>
+  <div class="subcalls" id="subCalls"></div>
+  <div class="subpad" id="subPad">
+    <div><button data-k="KeyA">⟲</button><button data-k="KeyD">⟳</button><button data-k="Space">⤒</button><button data-k="ShiftLeft">⤓</button></div>
+    <div><button data-k="KeyW">▲</button><button data-k="KeyS">▼</button></div>
+  </div>
+  <button class="ghost subquit" id="btnSubQuit">✕ Surface</button>
 </div>
 
 <div id="geoWrap" class="hidden">
@@ -2008,7 +2071,7 @@ function shareText() {
   return `🦐 Krill Dive ${label}\n${grid}\n${game.total} pts · ${(game.total * M_PER_PT).toLocaleString()} m deep`;
 }
 $('btnShare').onclick = async () => {
-  const txt = lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' || lastMode === 'dish' ? geoShareText() : shareText();
+  const txt = lastMode === 'sub' ? subShareText() : lastMode === 'sort' ? sortShareText() : lastMode === 'geo' || lastMode === 'street' || lastMode === 'dish' ? geoShareText() : shareText();
   try { await navigator.clipboard.writeText(txt); toast('Copied! Paste it to your friend.'); }
   catch (e) { prompt('Copy your result:', txt); }
 };
@@ -3044,6 +3107,524 @@ $('btnSaveKey').onclick = () => {
   refreshMenu();
 };
 
+// =====================================================================
+//  Blind Sub: co-op for two. The pilot steers through a pitch-black trench
+//  and can barely see; the sonar sees the whole map and calls out where to go.
+// =====================================================================
+const SUB_STEP = 2;          // metres between trench centre points
+const SUB_LEN = 540;         // metres of trench
+const SUB_RING = 14;         // corners around each ring of the tunnel wall
+const SUB_DEPTH = 300;       // depth in metres at the start
+const SUB_CALLS = {
+  left:  ['⬅️', 'Left'],     right: ['➡️', 'Right'],
+  up:    ['⬆️', 'Up'],       down:  ['⬇️', 'Down'],
+  slow:  ['🐢', 'Slow down'], stop: ['✋', 'Stop!'],
+  go:    ['🚀', 'Go go go'], mine:  ['💣', 'Mine!'],
+};
+const SUB_CALL_KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyS: 'slow', KeyX: 'stop', KeyG: 'go', KeyM: 'mine',
+  Digit1: 'left', Digit2: 'right', Digit3: 'up', Digit4: 'down', Digit5: 'slow', Digit6: 'stop', Digit7: 'go', Digit8: 'mine' };
+let sub = null, subGfx = null, subHum = null;
+const subKeys = new Set();
+
+function loadThree() {
+  if (window.THREE) return Promise.resolve();
+  return new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js';
+    s.onload = ok; s.onerror = () => fail(new Error('three'));
+    document.head.appendChild(s);
+  });
+}
+
+// the trench: a winding tube that climbs and dives, never crossing itself on the map, with mines inside
+function makeTrench(seed) {
+  for (let k = 0; k < 6; k++) { const t = growTrench(seed + k * 7919); if (t.n * SUB_STEP > 300) return t; }
+  return growTrench(seed);
+}
+function growTrench(seed) {
+  const r = rng(seed);
+  const pts = [[0, 0, 0]];
+  let h = 0, pitch = 0, turnTo = 0, climbTo = 0;
+  for (let i = 1, fails = 0; i * SUB_STEP < SUB_LEN && fails < 30;) {
+    if (i % 14 === 1) {
+      const roll = r();
+      turnTo = roll < 0.25 ? 0 : (roll < 0.8 ? 0.04 + r() * 0.06 : 0.11 + r() * 0.04) * (r() < 0.5 ? -1 : 1);
+      climbTo = r() < 0.4 ? 0 : (r() - 0.5) * 0.7;
+    }
+    const nh = h + (i < 6 ? 0 : turnTo), np = pitch + (climbTo - pitch) * 0.15;
+    const [x, y, z] = pts[i - 1];
+    const next = [x + Math.cos(nh) * SUB_STEP, subClamp(y + np * SUB_STEP, -45, 45), z + Math.sin(nh) * SUB_STEP];
+    // stay at least 16 m (on the map) from older parts of the trench, so the sonar picture never overlaps
+    let ok = true;
+    for (let j = 0; j < i - 10 && ok; j++) ok = Math.hypot(next[0] - pts[j][0], next[2] - pts[j][2]) > 16;
+    if (!ok) { fails++; turnTo = fails % 2 ? -turnTo || 0.12 : (r() - 0.5) * 0.3; continue; }
+    pts.push(next); h = nh; pitch = np; i++; fails = 0;
+  }
+  const n = pts.length;
+  const rad = pts.map((_, i) => {
+    if (i < 8) return 5;
+    const narrow = 0.5 + 0.5 * Math.sin(i * 0.045 + seed % 7);
+    return 3.4 + 2.2 * narrow + Math.sin(i * 0.31) * 0.3;
+  });
+  const mines = [];
+  for (let i = 30; i < n - 12; i += 10 + Math.floor(r() * 9)) {
+    const a = r() * Math.PI * 2, off = r() * Math.max(0, rad[i] - 2.2);
+    const f = subFrame(pts, i);
+    mines.push({ id: mines.length, i, gone: false,
+      p: [0, 1, 2].map(k => pts[i][k] + (f.n[k] * Math.cos(a) + f.b[k] * Math.sin(a)) * off) });
+  }
+  return { pts, rad, mines, n };
+}
+const subClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// direction along the trench at i, plus two sideways directions
+function subFrame(pts, i) {
+  const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+  let t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const tl = Math.hypot(...t) || 1; t = t.map(v => v / tl);
+  let n = [-t[2], 0, t[0]]; const nl = Math.hypot(...n) || 1; n = n.map(v => v / nl); // sideways, level
+  const bb = [n[1] * t[2] - n[2] * t[1], n[2] * t[0] - n[0] * t[2], n[0] * t[1] - n[1] * t[0]]; // up-ish
+  return { t, n, b: bb };
+}
+// nearest trench point to p, searching around the last one
+function subNearest(p, hint) {
+  const T = sub.trench; let best = hint, bd = Infinity;
+  for (let i = Math.max(0, hint - 8); i < Math.min(T.n, hint + 14); i++) {
+    const d = (p[0] - T.pts[i][0]) ** 2 + (p[1] - T.pts[i][1]) ** 2 + (p[2] - T.pts[i][2]) ** 2;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+
+function startSub({ seed, duel, role }) {
+  const trench = makeTrench(seed);
+  const s0 = trench.pts[3], f0 = subFrame(trench.pts, 3);
+  sub = { seed, duel, role, trench, solo: !duel,
+    pos: [...s0], h: Math.atan2(f0.t[2], f0.t[0]), v: 0, vy: 0, yawRate: 0, idx: 3,
+    hull: 100, t: 0, started: false, over: false, scrapes: 0, minesHit: 0, calls: 0, cool: 0, shake: 0,
+    lastSend: 0, lastPing: 0, view: null, callTimer: 0, last: performance.now(), loop: Math.random(),
+    // the trench collapses behind you, getting faster, so you can't creep along feeling the walls
+    cave: -22, gap: 22, dark: 0, nextCut: 18 + Math.random() * 10, rumble: 0 };
+  game = null; sort = null; geo = null; lastMode = 'sub'; currentGame = 'sub'; phase = 'sub';
+  subKeys.clear();
+  $('subWrap').className = role === 'pilot' ? (duel ? 'pilot' : 'pilot solo') : 'sonar';
+  $('subCall').classList.remove('show');
+  $('subCalls').innerHTML = Object.entries(SUB_CALLS).map(([k, [e, w]], n) => `<button data-call="${k}">${e}<small>${w} · ${n + 1}</small></button>`).join('');
+  $('subCalls').querySelectorAll('button').forEach(b => { b.onclick = () => subCall(b.dataset.call); });
+  showScreen('subWrap');
+  requestAnimationFrame(subResize);
+  SFX.dive();
+  if (role === 'pilot') {
+    $('subMsg').textContent = 'Warming up the engines…';
+    loadThree().then(() => { if (sub && sub.trench === trench) { subBuildScene(); $('subMsg').textContent = ''; subLoop(); } })
+      .catch(() => { $('subMsg').textContent = "Couldn't load the 3D engine. Check your internet."; });
+  } else {
+    $('subMsg').textContent = 'Waiting for the pilot…';
+    subLoop();
+  }
+}
+
+function subBuildScene() {
+  const T = sub.trench;
+  if (!subGfx) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+    $('subView').appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 200);
+    camera.rotation.order = 'YXZ';
+    subGfx = { renderer, camera };
+  }
+  const { camera } = subGfx;
+  camera.clear();
+  if (subGfx.scene) subGfx.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x01060d);
+  scene.fog = new THREE.FogExp2(0x01060d, 0.21);
+  const ambient = new THREE.HemisphereLight(0x3a6f8f, 0x0a0a12, 0.45);
+  scene.add(ambient);
+  // the sub's headlight
+  const lamp = new THREE.SpotLight(0xdff6ff, 14, 16, 0.7, 0.5, 1);
+  camera.add(lamp); lamp.position.set(0, -0.2, 0); lamp.target.position.set(0, 0, -5); camera.add(lamp.target);
+  const glow = new THREE.PointLight(0x7fd8ff, 2.6, 7, 1.2); camera.add(glow);
+  scene.add(camera);
+  subGfx.lights = { lamp, glow, ambient };
+
+  // rocky tunnel walls
+  const r = rng(sub.seed + 7), pos = [], col = [], idx = [];
+  for (let i = 0; i < T.n; i++) {
+    const f = subFrame(T.pts, i), p = T.pts[i];
+    for (let k = 0; k < SUB_RING; k++) {
+      const a = k / SUB_RING * Math.PI * 2, rr = T.rad[i] * (0.86 + r() * 0.3);
+      for (let c = 0; c < 3; c++) pos.push(p[c] + (f.n[c] * Math.cos(a) + f.b[c] * Math.sin(a)) * rr);
+      const shade = 0.55 + r() * 0.45, low = Math.sin(a) < -0.3; // the floor gets silt
+      col.push(...(low ? [0.62 * shade, 0.55 * shade, 0.40 * shade] : [0.36 * shade, 0.46 * shade, 0.50 * shade]));
+      if (i > 0) {
+        const a0 = (i - 1) * SUB_RING + k, a1 = (i - 1) * SUB_RING + (k + 1) % SUB_RING, b0 = i * SUB_RING + k, b1 = i * SUB_RING + (k + 1) % SUB_RING;
+        idx.push(a0, b0, a1, a1, b0, b1);
+      }
+    }
+  }
+  // close the end behind you
+  const geo3 = new THREE.BufferGeometry();
+  geo3.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo3.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo3.setIndex(idx); geo3.computeVertexNormals();
+  scene.add(new THREE.Mesh(geo3, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true, side: THREE.DoubleSide })));
+  const capGeo = new THREE.CircleGeometry(6, 16);
+  const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: 0x1b2328, roughness: 1, side: THREE.DoubleSide }));
+  const f0 = subFrame(T.pts, 0); cap.position.set(...T.pts[0]); cap.lookAt(T.pts[0][0] + f0.t[0], T.pts[0][1] + f0.t[1], T.pts[0][2] + f0.t[2]);
+  scene.add(cap);
+
+  // mines: spiky balls with a blinking red light
+  const mineMat = new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.5, metalness: 0.7 });
+  const spikeGeo = new THREE.ConeGeometry(0.09, 0.45, 6), ballGeo = new THREE.SphereGeometry(0.55, 14, 10);
+  subGfx.blinks = [];
+  subGfx.mines = T.mines.map(m => {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(ballGeo, mineMat));
+    for (const d of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [.6, .6, .6], [-.6, -.6, .6], [.6, -.6, -.6], [-.6, .6, -.6]]) {
+      const sp = new THREE.Mesh(spikeGeo, mineMat), v = new THREE.Vector3(...d).normalize();
+      sp.position.copy(v.clone().multiplyScalar(0.62)); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v); g.add(sp);
+    }
+    const blink = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x5a1010 }));
+    blink.position.set(0, 0.6, 0); g.add(blink); subGfx.blinks.push(blink);
+    g.position.set(...m.p); g.rotation.set(r() * 3, r() * 3, 0);
+    scene.add(g); return g;
+  });
+
+  // the exit beacon
+  const end = T.pts[T.n - 1];
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), new THREE.MeshBasicMaterial({ color: 0x5dffb0 }));
+  beacon.position.set(...end); scene.add(beacon);
+  const bl = new THREE.PointLight(0x5dffb0, 3, 30, 1.5); bl.position.set(...end); scene.add(bl);
+  subGfx.beacon = beacon;
+
+  // drifting marine snow around the camera
+  const snow = new Float32Array(600 * 3);
+  for (let i = 0; i < snow.length; i++) snow[i] = (Math.random() - 0.5) * 24;
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(snow, 3));
+  subGfx.snow = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xa9c9d6, size: 0.05, transparent: true, opacity: 0.7 }));
+  scene.add(subGfx.snow);
+  subGfx.scene = scene;
+  subResize();
+}
+
+function subResize() {
+  if (subGfx && subGfx.scene) {
+    const w = innerWidth, h = innerHeight;
+    subGfx.renderer.setSize(w, h); subGfx.camera.aspect = w / h; subGfx.camera.updateProjectionMatrix();
+  }
+  const cv = $('sonarCv'), box = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio);
+  cv.width = Math.max(1, box.width * dpr); cv.height = Math.max(1, box.height * dpr);
+}
+addEventListener('resize', () => { if (phase === 'sub') subResize(); });
+
+function subLoop(id = sub.loop) {
+  if (!sub || phase !== 'sub' || id !== sub.loop) return;
+  requestAnimationFrame(() => subLoop(id));
+  const now = performance.now(), dt = Math.min(0.05, (now - sub.last) / 1000);
+  sub.last = now;
+  if (sub.role === 'pilot' && subGfx && subGfx.scene) { subPilotStep(dt); subRender(dt); }
+  if (sub.role === 'sonar' || sub.solo) subDrawSonar(dt);
+  subHud();
+  if (sub.callTimer > 0 && (sub.callTimer -= dt) <= 0) $('subCall').classList.remove('show');
+}
+
+function subPilotStep(dt) {
+  if (sub.over) return;
+  const k = c => subKeys.has(c);
+  const thrust = (k('KeyW') || k('ArrowUp')) - (k('KeyS') || k('ArrowDown'));
+  const yaw = (k('KeyD') || k('ArrowRight')) - (k('KeyA') || k('ArrowLeft'));
+  const vert = (k('Space') || k('KeyR') || k('KeyE')) - (k('ShiftLeft') || k('ShiftRight') || k('KeyF') || k('KeyQ'));
+  if (!sub.started && thrust) sub.started = true;
+  if (sub.started) {
+    sub.t += dt;
+    if (sub.t > 4) sub.cave += Math.min(9.5, 5.5 + (sub.t - 4) * 0.065) * dt;
+    sub.gap = sub.idx * SUB_STEP - sub.cave;
+    if (sub.gap < 25) {
+      sub.shake = Math.max(sub.shake, (25 - sub.gap) / 25 * 0.7);
+      if ((sub.rumble -= dt) <= 0) { sub.rumble = 0.25 + sub.gap / 60; noise(0, .5, .1 + (25 - sub.gap) / 80, 160, 60); }
+    }
+    // power cuts: the headlight dies for a few seconds and only the sonar can see
+    if (sub.dark > 0) {
+      sub.dark -= dt;
+      if (sub.dark <= 0) { sub.nextCut = 20 + Math.random() * 15; $('subMsg').textContent = ''; tone(440, 0, .15, { type: 'triangle', vol: .08, slide: 2 }); }
+    } else if ((sub.nextCut -= dt) <= 0) {
+      sub.dark = 4 + Math.random() * 2;
+      $('subMsg').textContent = '⚡ Lights out! Listen to your sonar';
+      tone(330, 0, .6, { type: 'sawtooth', vol: .07, slide: .3 });
+    }
+  }
+
+  sub.yawRate += (yaw * 1.3 - sub.yawRate) * Math.min(1, 5 * dt);
+  sub.h += sub.yawRate * dt;
+  sub.v = subClamp((sub.v + thrust * 5.5 * dt) * (1 - 0.5 * dt), -2.5, 11);
+  sub.vy += (vert * 2.4 - sub.vy) * Math.min(1, 3 * dt);
+  const f = [Math.cos(sub.h), 0, Math.sin(sub.h)];
+  for (let c = 0; c < 3; c++) sub.pos[c] += f[c] * sub.v * dt;
+  sub.pos[1] += sub.vy * dt;
+
+  // the walls: push back inside and take damage on a hard knock
+  const T = sub.trench;
+  sub.idx = subNearest(sub.pos, sub.idx);
+  const fr = subFrame(T.pts, sub.idx), c0 = T.pts[sub.idx];
+  const d = [0, 1, 2].map(c => sub.pos[c] - c0[c]), along = d[0] * fr.t[0] + d[1] * fr.t[1] + d[2] * fr.t[2];
+  const perp = [0, 1, 2].map(c => d[c] - fr.t[c] * along), dist = Math.hypot(...perp), limit = T.rad[sub.idx] * 0.86 - 0.6;
+  sub.cool -= dt;
+  if (dist > limit) {
+    const out = perp.map(c => c / dist);
+    for (let c = 0; c < 3; c++) sub.pos[c] -= out[c] * (dist - limit);
+    // only the part of your speed going into the wall hurts; sliding along it just grinds
+    const knock = (f[0] * out[0] + f[2] * out[2]) * sub.v + out[1] * sub.vy;
+    if (knock > 1.6 && sub.cool <= 0) {
+      sub.hull -= Math.min(20, (knock - 1) * 6); sub.scrapes++; sub.cool = 0.8; sub.shake = Math.min(1, knock / 4);
+      noise(0, .4, .3, 1100, 180); tone(70, 0, .3, { type: 'sawtooth', vol: .08, slide: .6 });
+    } else if (sub.cool <= 0 && Math.abs(sub.v) > 1) { sub.cool = 0.35; sub.shake = Math.max(sub.shake, 0.3); noise(0, .25, .12, 600, 200); }
+    sub.v *= 1 - 1.5 * dt;
+  }
+  if (sub.idx === 0 && along < -1) for (let c = 0; c < 3; c++) sub.pos[c] -= fr.t[c] * (along + 1);
+
+  // mines
+  for (const m of T.mines) {
+    if (m.gone || Math.hypot(sub.pos[0] - m.p[0], sub.pos[1] - m.p[1], sub.pos[2] - m.p[2]) > 1.45) continue;
+    m.gone = true; sub.minesHit++; sub.hull -= 30; sub.shake = 1.6; sub.v *= 0.3;
+    if (subGfx && subGfx.mines && subGfx.mines[m.id]) subGfx.mines[m.id].visible = false;
+    noise(0, 1.1, .5, 700, 50); tone(55, 0, .9, { type: 'sawtooth', vol: .12, slide: .5 });
+    $('subView').classList.add('boom'); setTimeout(() => $('subView').classList.remove('boom'), 250);
+    send({ t: 'subm', id: m.id, sd: sub.seed });
+  }
+  subHumTo(Math.abs(sub.v) / 7.5);
+
+  if (sub.hull <= 0) { sub.hull = 0; subFinish(false); }
+  else if (sub.gap <= 0) { sub.gap = 0; subFinish(false, 'The cave-in caught you! 🪨'); }
+  else if (sub.idx >= T.n - 3) subFinish(true);
+
+  sub.lastSend -= dt;
+  if (sub.duel && sub.lastSend <= 0) {
+    sub.lastSend = 1 / 15;
+    send({ t: 'subp', sd: sub.seed, p: sub.pos.map(v => +v.toFixed(2)), h: +sub.h.toFixed(3), hull: Math.round(sub.hull), i: sub.idx, tm: +sub.t.toFixed(1), v: +sub.v.toFixed(1), gap: Math.round(sub.gap), cave: Math.round(sub.cave), dark: sub.dark > 0 });
+  }
+}
+
+function subRender(dt) {
+  const { camera, renderer, scene, snow, blinks, beacon, lights } = subGfx;
+  const flicker = sub.dark > 0 ? (sub.dark < 0.6 && Math.random() < 0.4 ? 0.5 : 0) : 1;
+  lights.lamp.intensity = 14 * flicker; lights.glow.intensity = 2.6 * flicker; lights.ambient.intensity = 0.45 * flicker + 0.02;
+  sub.shake = Math.max(0, sub.shake - dt * 1.8);
+  const s = sub.shake * sub.shake * 0.25;
+  camera.position.set(sub.pos[0] + (Math.random() - .5) * s, sub.pos[1] + (Math.random() - .5) * s, sub.pos[2] + (Math.random() - .5) * s);
+  camera.rotation.y = -sub.h - Math.PI / 2;
+  camera.rotation.x = subClamp(sub.vy * 0.06, -0.2, 0.2);
+  camera.rotation.z = -sub.yawRate * 0.08;
+  const on = (performance.now() / 600 | 0) % 2 === 0;
+  blinks.forEach(b => { b.visible = on; });
+  beacon.scale.setScalar(1 + Math.sin(performance.now() / 300) * 0.15);
+  // keep the snow in a box around the camera
+  const a = snow.geometry.attributes.position;
+  for (let i = 0; i < a.count; i++) {
+    for (let c = 0; c < 3; c++) {
+      let v = a.array[i * 3 + c] - (c === 1 ? 0.15 * dt : 0);
+      const rel = v - camera.position.getComponent(c);
+      if (rel > 12) v -= 24; else if (rel < -12) v += 24;
+      a.array[i * 3 + c] = v;
+    }
+  }
+  a.needsUpdate = true;
+  renderer.render(scene, camera);
+}
+
+// sonar: the whole trench from above, turned so the sub always points up, plus a depth profile of what's ahead
+function subDrawSonar(dt) {
+  const cv = $('sonarCv'), g = cv.getContext('2d'), W = cv.width, H = cv.height, T = sub.trench;
+  if (!W || !H) return;
+  const v = sub.role === 'pilot' ? { p: sub.pos, h: sub.h, i: sub.idx } : sub.view;
+  g.fillStyle = '#020d10'; g.fillRect(0, 0, W, H);
+  if (!v) return;
+  const S = Math.min(W, H) / (sub.solo ? 70 : 60), cx = W / 2, cy = H * (sub.solo ? 0.6 : 0.62);
+  g.save();
+  g.translate(cx, cy); g.rotate(-Math.PI / 2 - v.h); g.scale(S, S); g.translate(-v.p[0], -v.p[2]);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  // tunnel: lighter where it is above you, darker where it is below
+  for (let i = 1; i < T.n; i++) {
+    const a = T.pts[i - 1], b = T.pts[i], dy = b[1] - v.p[1];
+    const l = subClamp(22 + dy * 0.8, 8, 42);
+    g.strokeStyle = `hsl(${dy > 0 ? 165 : 200}, 60%, ${l}%)`; g.lineWidth = T.rad[i] * 1.7;
+    g.beginPath(); g.moveTo(a[0], a[2]); g.lineTo(b[0], b[2]); g.stroke();
+  }
+  g.strokeStyle = 'rgba(160,255,220,.25)'; g.lineWidth = 0.15; g.setLineDash([0.8, 1.2]);
+  g.beginPath(); T.pts.forEach((p, i) => i ? g.lineTo(p[0], p[2]) : g.moveTo(p[0], p[2])); g.stroke(); g.setLineDash([]);
+  for (const m of T.mines) {
+    if (m.gone) continue;
+    g.fillStyle = '#ff4d5e'; g.beginPath(); g.arc(m.p[0], m.p[2], 0.9, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,77,94,.35)'; g.lineWidth = 0.2; g.beginPath(); g.arc(m.p[0], m.p[2], 1.8, 0, 7); g.stroke();
+  }
+  const caveAt = sub.role === 'pilot' ? sub.cave : (v.cave || -30), ci = Math.floor(caveAt / SUB_STEP);
+  if (ci > 0) {
+    g.strokeStyle = 'rgba(70,60,55,.95)';
+    for (let i = 1; i <= Math.min(ci, T.n - 1); i++) {
+      g.lineWidth = T.rad[i] * 1.9; g.beginPath(); g.moveTo(T.pts[i - 1][0], T.pts[i - 1][2]); g.lineTo(T.pts[i][0], T.pts[i][2]); g.stroke();
+    }
+    const c = T.pts[Math.min(ci, T.n - 1)];
+    g.fillStyle = `rgba(255,120,60,${0.5 + 0.3 * Math.sin(performance.now() / 120)})`; g.beginPath(); g.arc(c[0], c[2], T.rad[Math.min(ci, T.n - 1)], 0, 7); g.fill();
+  }
+  const e = T.pts[T.n - 1];
+  g.fillStyle = '#5dffb0'; g.beginPath(); g.arc(e[0], e[2], 1.6, 0, 7); g.fill();
+  g.restore();
+  // the sub, always in the middle pointing up
+  g.fillStyle = '#ffd66b'; g.beginPath(); g.moveTo(cx, cy - S * 1.6); g.lineTo(cx + S * 0.9, cy + S * 1.1); g.lineTo(cx - S * 0.9, cy + S * 1.1); g.closePath(); g.fill();
+  // sweep
+  const sw = (performance.now() / 1600) % 1;
+  g.strokeStyle = `rgba(93,255,176,${0.5 * (1 - sw)})`; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, sw * Math.max(W, H) * 0.6, 0, 7); g.stroke();
+  if (sub.role === 'sonar' && (sub.lastPing -= dt) <= 0) { sub.lastPing = 1.6; tone(1320, 0, .5, { vol: .035, slide: .98 }); }
+
+  if (sub.solo) return;
+  // depth profile: the next 60 m of trench, side on
+  const k = W / (cv.clientWidth || W), pw = Math.min(W * 0.42, 300 * k), ph = pw * 0.38, px = 12 * k, py = H - ph - px;
+  g.fillStyle = 'rgba(2,20,24,.85)'; g.fillRect(px, py, pw, ph); g.strokeStyle = 'rgba(93,255,176,.3)'; g.lineWidth = 1; g.strokeRect(px, py, pw, ph);
+  const from = Math.max(0, v.i - 4), to = Math.min(T.n - 1, v.i + 30), ys = ph / 26;
+  const X = i => px + (i - from) / (to - from || 1) * pw, Y = y => py + ph / 2 - (y - v.p[1]) * ys;
+  g.fillStyle = 'rgba(93,255,176,.22)'; g.beginPath();
+  for (let i = from; i <= to; i++) g.lineTo(X(i), Y(T.pts[i][1] + T.rad[i] * 0.8));
+  for (let i = to; i >= from; i--) g.lineTo(X(i), Y(T.pts[i][1] - T.rad[i] * 0.8));
+  g.closePath(); g.fill();
+  g.fillStyle = '#ffd66b'; g.beginPath(); g.arc(X(v.i), py + ph / 2, 4 * k, 0, 7); g.fill();
+  g.fillStyle = 'rgba(200,255,235,.7)'; g.font = `${11 * k}px sans-serif`; g.fillText('depth ahead →', px + 6, py + 14 * k);
+}
+
+function subHud() {
+  const T = sub.trench, i = sub.role === 'pilot' ? sub.idx : sub.view ? sub.view.i : 0;
+  const hull = sub.role === 'pilot' ? sub.hull : sub.view ? sub.view.hull : 100, tm = sub.role === 'pilot' ? sub.t : sub.view ? sub.view.tm : 0;
+  const gap = sub.role === 'pilot' ? sub.gap : sub.view ? sub.view.gap : sub.gap;
+  const gapCol = gap > 40 ? 'var(--ink)' : gap > 20 ? 'var(--gold)' : 'var(--coral)';
+  const depth = SUB_DEPTH - Math.round(sub.role === 'pilot' ? sub.pos[1] : sub.view ? sub.view.p[1] : 0);
+  const pct = Math.round(i / (T.n - 3) * 100), clock = `${Math.floor(tm / 60)}:${String(Math.floor(tm % 60)).padStart(2, '0')}`;
+  const hullCol = hull > 60 ? 'var(--cyan)' : hull > 30 ? 'var(--gold)' : 'var(--coral)';
+  const who = sub.role === 'pilot' ? (sub.solo ? '🎮 Solo pilot' : '🎮 Pilot') : '📡 Sonar';
+  $('subHud').innerHTML = `<span>${who}</span><span style="color:${hullCol}">Hull ${Math.round(hull)}%</span><span style="color:${gapCol}">🪨 Cave-in ${Math.max(0, Math.round(gap))} m behind</span><span>${depth} m deep</span><span>${pct}% · ${clock}</span>`;
+}
+
+// sonar -> pilot: a call flashes up big and is spoken out loud
+function subCall(c) {
+  if (!sub || sub.role !== 'sonar' || sub.over || !SUB_CALLS[c]) return;
+  sub.calls++;
+  send({ t: 'subc', sd: sub.seed, c });
+  SFX.click();
+  const b = $('subCalls').querySelector(`[data-call="${c}"]`);
+  if (b) { b.classList.add('sent'); setTimeout(() => b.classList.remove('sent'), 200); }
+}
+function subShowCall(c) {
+  const [e, w] = SUB_CALLS[c];
+  $('subCall').innerHTML = `${e}<b>${w}</b>`;
+  $('subCall').classList.remove('show'); void $('subCall').offsetWidth; $('subCall').classList.add('show');
+  sub.callTimer = 1.6; sub.calls++;
+  tone(c === 'mine' || c === 'stop' ? 660 : 880, 0, .12, { type: 'square', vol: .05 });
+  if (save.settings.sfx && 'speechSynthesis' in window) {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(w); u.rate = 1.3; u.pitch = c === 'mine' ? 0.8 : 1;
+    speechSynthesis.speak(u);
+  }
+}
+
+// low engine hum that follows the throttle
+function subHumTo(level) {
+  if (!AC || !save.settings.sfx) return;
+  if (!subHum) {
+    const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain();
+    o.type = 'sawtooth'; o.frequency.value = 48; f.type = 'lowpass'; f.frequency.value = 220; g.gain.value = 0;
+    o.connect(f).connect(g).connect(sfxBus); o.start();
+    subHum = { o, g };
+  }
+  subHum.o.frequency.setTargetAtTime(44 + level * 40, AC.currentTime, 0.2);
+  subHum.g.gain.setTargetAtTime(0.025 + level * 0.06, AC.currentTime, 0.2);
+}
+function subHumOff() { if (subHum) subHum.g.gain.setTargetAtTime(0, AC.currentTime, 0.1); }
+
+function subFinish(won, why) {
+  if (!sub || sub.over) return;
+  sub.over = true;
+  if (sub.role === 'pilot') send({ t: 'subend', sd: sub.seed, won, tm: sub.t, hull: Math.round(sub.hull), mines: sub.minesHit, scrapes: sub.scrapes, calls: sub.calls, gap: Math.round(sub.gap), why });
+  subHumOff();
+  if (won) { SFX.win(); burstBubbles(30); } else SFX.lose();
+  setTimeout(() => subResults(won, why), won ? 900 : 1300);
+}
+function subResults(won, why) {
+  if (!sub) return;
+  phase = 'end';
+  const v = sub.role === 'pilot' ? { tm: sub.t, hull: sub.hull, mines: sub.minesHit, scrapes: sub.scrapes, calls: sub.calls, gap: sub.gap } : sub.final || {};
+  const key = sub.solo ? 'subSoloBest' : 'subBest', newBest = won && (!save[key] || v.tm < save[key]);
+  if (newBest) save[key] = v.tm;
+  if (won) save.subWins = (save.subWins || 0) + 1;
+  save.played++; persist();
+  const clock = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+  const hull = Math.round(v.hull || 0);
+  $('resTitle').textContent = why || (won ? 'Made it out! 🔦' : 'Hull breached! 💥');
+  $('resGrid').textContent = Array.from({ length: 5 }, (_, k) => hull > k * 20 ? (hull > 60 ? '🟩' : hull > 30 ? '🟨' : '🟥') : '⬛').join('');
+  let html = `<div class="stat"><span>Time</span><b>${clock(v.tm || 0)}</b></div>`;
+  html += `<div class="stat"><span>Hull left</span><b>${hull}%</b></div>`;
+  html += `<div class="stat"><span>Cave-in gap</span><b>${Math.max(0, Math.round(v.gap || 0))} m</b></div>`;
+  html += `<div class="stat"><span>Mines hit</span><b>${v.mines || 0}</b></div>`;
+  html += `<div class="stat"><span>Wall scrapes</span><b>${v.scrapes || 0}</b></div>`;
+  if (!sub.solo) html += `<div class="stat"><span>Sonar calls</span><b>${v.calls || 0}</b></div>`;
+  html += `<div class="stat"><span>${sub.solo ? 'Best solo time' : 'Best team time'}</span><b>${save[key] ? clock(save[key]) : '—'}${newBest ? ' ⭐ NEW' : ''}</b></div>`;
+  $('resStats').innerHTML = html;
+  $('btnAgain').textContent = sub.duel ? `Dive again (${sub.role === 'pilot' ? 'you take sonar' : 'you pilot'})` : 'Try again';
+  $('btnAgain').disabled = sub.duel && !online();
+  $('resStatus').textContent = sub.duel && online() ? 'Either of you can start the next dive. Roles swap!' : '';
+  sub.won = won; sub.result = v;
+  showScreen('results');
+}
+function subShareText() {
+  if (!sub || !sub.result) return '';
+  const v = sub.result, t = v.tm || 0;
+  return `🔦 Blind Sub${sub.solo ? ' (solo)' : ''}\n${sub.won ? `Made it out in ${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}` : 'Hull breached'} · ${Math.round(v.hull || 0)}% hull · ${v.mines || 0} mines hit`;
+}
+// starts a co-op dive for both players; iPilot says which of you steers
+function subDuel(iPilot) {
+  const seed = Math.floor(Math.random() * 1e9);
+  send({ t: 'start', game: 'sub', seed, senderPilots: iPilot });
+  startSub({ seed, duel: true, role: iPilot ? 'pilot' : 'sonar' });
+}
+function subOnData(d) {
+  if (!sub || d.sd !== sub.seed) return;
+  if (d.t === 'subp' && sub.role === 'sonar' && Array.isArray(d.p)) {
+    const wasDark = sub.view && sub.view.dark;
+    sub.view = { p: d.p.map(Number), h: +d.h || 0, hull: +d.hull || 0, i: d.i | 0, tm: +d.tm || 0, gap: +d.gap || 0, cave: +d.cave || 0, dark: !!d.dark };
+    $('subMsg').textContent = sub.view.dark ? '⚡ PILOT IS BLIND! Talk them through it' : '';
+    if (sub.view.dark && !wasDark) tone(330, 0, .6, { type: 'sawtooth', vol: .07, slide: .3 });
+  } else if (d.t === 'subm' && sub.trench.mines[d.id]) {
+    sub.trench.mines[d.id].gone = true;
+    if (sub.role === 'sonar') { noise(0, .8, .3, 600, 60); $('sonarCv').classList.add('boom'); setTimeout(() => $('sonarCv').classList.remove('boom'), 250); }
+  } else if (d.t === 'subc' && sub.role === 'pilot' && SUB_CALLS[d.c]) {
+    subShowCall(d.c);
+  } else if (d.t === 'subend' && sub.role === 'sonar') {
+    sub.final = { tm: +d.tm || 0, hull: +d.hull || 0, mines: d.mines | 0, scrapes: d.scrapes | 0, calls: d.calls | 0, gap: +d.gap || 0 };
+    subFinish(!!d.won, d.quit ? 'The pilot left the dive' : d.why === 'The cave-in caught you! 🪨' ? d.why : undefined);
+  }
+}
+
+addEventListener('keydown', e => {
+  if (phase !== 'sub' || !sub) return;
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (sub.role === 'sonar') { if (SUB_CALL_KEYS[e.code] && !e.repeat) { subCall(SUB_CALL_KEYS[e.code]); e.preventDefault(); } return; }
+  subKeys.add(e.code);
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', e => subKeys.delete(e.code));
+addEventListener('blur', () => subKeys.clear());
+// on-screen buttons for piloting on a phone
+document.querySelectorAll('#subPad [data-k]').forEach(b => {
+  const on = e => { e.preventDefault(); subKeys.add(b.dataset.k); }, off = () => subKeys.delete(b.dataset.k);
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+});
+$('btnSubQuit').onclick = () => { if (sub && !sub.over) { sub.over = true; subHumOff(); send({ t: 'subend', sd: sub.seed, won: false, tm: sub.t, hull: 0, quit: true }); } leaveNet(); sub = null; showScreen('subMenu'); };
+$('btnSubSolo').onclick = () => startSub({ seed: Math.floor(Math.random() * 1e9), duel: false, role: 'pilot' });
+$('btnSubHost').onclick = () => hostGame();
+$('btnSubJoin').onclick = () => joinGame();
+$('subJoinCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+$('btnSubHub').onclick = () => { leaveNet(); showScreen('hub'); };
+$('cardSub').onclick = () => { currentGame = 'sub'; $('subStatus').textContent = ''; showScreen('subMenu'); };
+
+
 // ---------- networking (PeerJS, peer to peer) ----------
 let peer = null, conn = null, isHost = false, remote = null, useDailySet = true;
 const wins = { me: 0, them: 0 };
@@ -3072,7 +3653,7 @@ function hostGame() {
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
 }
 function joinGame() {
-  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode', dish: 'dishJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
+  const code = $({ sort: 'sortJoinCode', geo: 'geoJoinCode', street: 'streetJoinCode', dish: 'dishJoinCode', sub: 'subJoinCode' }[currentGame] || 'joinCode').value.trim().toUpperCase();
   if (code.length !== 4) { $(menuStatusId()).textContent = 'Type the 4-letter code your friend sees.'; return; }
   if (typeof Peer === 'undefined') { $(menuStatusId()).textContent = "Couldn't load the multiplayer library. Check your internet."; return; }
   leaveNet();
@@ -3098,6 +3679,7 @@ function setupConn(c) {
     if (phase === 'ask') tryReveal();
     if (phase === 'sort' && sort && sort.done) setTimeout(showSortResults, 500);
     if (phase === 'geo' && geoState && geoState.locked && !geoState.revealed) geoReveal();
+    if (phase === 'sub' && sub && sub.duel && !sub.over) subFinish(false, 'Lost contact with ' + name + ' 📡');
     if (!$('lobby').classList.contains('hidden')) { $('lobbyStatus').textContent = isHost ? 'Friend left. Waiting for someone to join…' : 'Host left.'; $('btnStart').disabled = true; }
     if (phase === 'end') $('btnAgain').disabled = game && game.duel;
   });
@@ -3117,12 +3699,15 @@ function onData(d) {
     if (d.game === 'sort') startSort({ seed: d.seed, daily: d.daily, duel: true, pi: d.pi });
     else if (d.game === 'geo') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks });
     else if (d.game === 'dish') startGeo({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks, mode: 'dish' });
+    else if (d.game === 'sub' && Number.isFinite(d.seed)) startSub({ seed: d.seed, duel: true, role: d.senderPilots ? 'sonar' : 'pilot' });
     else if (d.game === 'street') startStreet({ seed: d.seed, daily: d.daily, duel: true, picks: d.picks }).then(ok => { if (!ok) toast('You need a Google Maps key for Wander duels'); });
     else startGame({ seed: d.seed, daily: d.daily, duel: true });
   } else if (d.t === 'gguess' && geo && geo.duel && d.sd === geo.seed && Number.isInteger(d.r) && isFinite(d.lon) && isFinite(d.lat)) {
     geo.oppGuesses[d.r] = { ll: [+d.lon, +d.lat], km: Math.max(0, +d.km || 0), pts: Math.max(0, Math.min(5000, d.pts | 0)) };
     if (d.r === geo.i && geoState && geoState.locked && !geoState.revealed) geoReveal();
     else if (d.r === geo.i && geoState && !geoState.locked) oppChose(true);
+  } else if (typeof d.t === 'string' && d.t.startsWith('sub')) {
+    subOnData(d);
   } else if (d.t === 'sprog' && sort && sort.duel && d.sd === sort.seed) {
     Object.assign(sort.opp, { found: (d.found || []).map(t => t | 0), air: d.air | 0, done: !!d.done, time: +d.time || 0, mistakes: d.mistakes | 0 });
     if (phase === 'sort') renderSort();
@@ -3142,6 +3727,7 @@ let lobbyGame = 'dive';
 function startDuel(daily, which = lobbyGame) {
   const seed = daily ? hashStr(todayKey()) : Math.floor(Math.random() * 1e9);
   if (which === 'street') { startStreetDuel(seed, daily); return; }
+  if (which === 'sub') { subDuel(daily); return; } // for Blind Sub the first lobby button means "I pilot"
   const pi = which === 'sort' && !daily ? freshPuzzle() : undefined;
   const picks = daily ? undefined : which === 'geo' ? freshPlaces() : which === 'dish' ? freshPlaces(DISHES.length, 'dishSeen') : undefined;
   send({ t: 'start', seed, daily, game: which, pi, picks });
@@ -3162,24 +3748,27 @@ async function startStreetDuel(seed, daily) {
 }
 function pickLobbyGame(which) {
   lobbyGame = which;
-  const names = { dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Flotsam Places', street: 'Wander', dish: 'Flotsam Food' };
-  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} duel`);
-  $('setDaily').textContent = { dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots", dish: "Today's menu" }[which];
-  $('setRandom').textContent = { dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots', dish: 'Random dishes' }[which];
+  $('setLabel').textContent = which === 'sub' ? 'Who steers first?' : 'Questions';
+  $('btnStart').textContent = which === 'sub' ? 'Start Dive' : 'Start Duel';
+  const names = { sub: 'Blind Sub', dive: 'Krill Dive', sort: 'Shoal Sort', geo: 'Flotsam Places', street: 'Wander', dish: 'Flotsam Food' };
+  $('lobbyTitle').textContent = $('lobbyTitle').textContent.replace(/^Hosting.*/, `Hosting a ${names[which]} ${which === 'sub' ? 'dive' : 'duel'}`);
+  $('setDaily').textContent = { sub: '🎮 I pilot', dive: "Today's set", sort: "Today's puzzle", geo: "Today's trip", street: "Today's spots", dish: "Today's menu" }[which];
+  $('setRandom').textContent = { sub: '📡 I do sonar', dive: 'Random set', sort: 'Random puzzle', geo: 'Random places', street: 'Random spots', dish: 'Random dishes' }[which];
   $('lobbyHelp').innerHTML = {
     sort: 'Race on the same 16 words! Find all 4 groups first.<br><b>Most groups wins, then fewest mistakes, then fastest.</b>',
     dive: 'Same 7 categories, same timer. Rarer answers score more.<br><b>If you both say the same thing, you split the points!</b>',
     geo: 'Same 5 places for both of you. See where your friend guessed after each one.<br><b>Closest guesses score the most!</b>',
     street: 'You both drop into the same 5 Street View spots. Look around, then pin it.<br><b>Both of you need Street View working (a Google Maps key).</b>',
+    sub: 'One of you pilots, the other reads the sonar. Roles swap after each dive.<br><b>Talk to each other! Voice chat on Discord makes it even better.</b>',
     dish: 'Same 5 dishes for both of you. Tap the country each one comes from.<br><b>The right country scores full points!</b>',
   }[which];
 }
 
 // ---------- menus ----------
-const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
+const screens = ['hub', 'menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'subMenu', 'subWrap', 'lobby', 'qWrap', 'results', 'custom', 'sortWrap', 'geoWrap'];
 let currentGame = 'dive'; // which game's menu "back" returns to
-const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus', dish: 'dishStatus' }[currentGame] || 'menuStatus');
-const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu', dish: 'dishMenu' }[currentGame] || 'menu');
+const menuStatusId = () => ({ sort: 'sortStatus', geo: 'geoStatus', street: 'streetStatus', dish: 'dishStatus', sub: 'subStatus' }[currentGame] || 'menuStatus');
+const goHome = () => showScreen({ sort: 'sortMenu', geo: 'geoMenu', street: 'streetMenu', dish: 'dishMenu', sub: 'subMenu' }[currentGame] || 'menu');
 
 // ---------- customiser ----------
 function buildCustom() {
@@ -3224,7 +3813,7 @@ function drawPreview(now) {
 }
 $('btnCustom').onclick = () => { buildCustom(); $('hatHint').textContent = ''; showScreen('custom'); };
 $('btnCustomDone').onclick = () => { send({ t: 'look', look: save.look }); showScreen('menu'); };
-function showScreen(name) { oppChose(false); for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
+function showScreen(name) { oppChose(false); for (const n of screens) $(n).classList.toggle('hidden', n !== name); if (['menu', 'sortMenu', 'geoMenu', 'streetMenu', 'dishMenu', 'subMenu', 'hub'].includes(name)) { phase = 'menu'; refreshMenu(); } }
 let toastT = 0;
 // in a duel: shows when your friend has answered this round, until the round ends
 function oppChose(on) {
@@ -3261,6 +3850,9 @@ function refreshMenu() {
   $('btnDishDaily').disabled = dd;
   const dishStreak = save.dishLast === todayKey() || save.dishLast === yest ? save.dishStreak || 0 : 0;
   $('dishStats').innerHTML = `🔥 Streak ${dishStreak} · Best ${(save.dishBest || 0).toLocaleString()} · ${DISHES.length} dishes<br>5 dishes per meal, up to 5,000 points each.<br>Tap anywhere in the right country for full points.`;
+  const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+  $('hubSubStatus').textContent = save.subBest ? `🏁 Best team time ${fmt(save.subBest)}` : '👥 Grab a friend and dive!';
+  $('subStats').innerHTML = `🏁 Best team time ${save.subBest ? fmt(save.subBest) : '—'} · Best solo ${save.subSoloBest ? fmt(save.subSoloBest) : '—'} · ${save.subWins || 0} escapes<br>A new trench every dive. Mines and walls hurt, the lights cut out, and the trench caves in behind you. Go fast!`;
   $('hubSortStatus').textContent = sd ? `✓ Today's puzzle: ${save.sortDaily.found}/4 groups` : "🌊 Today's puzzle is ready!";
   const done = dailyDone();
   $('btnDaily').textContent = done ? `Today's dive done: ${(save.daily.pts * M_PER_PT).toLocaleString()} m ✓` : "Today's Dive";
@@ -3332,6 +3924,7 @@ $('setRandom').onclick = () => { useDailySet = false; $('setRandom').classList.a
 $('btnStart').onclick = () => { if (online()) startDuel(useDailySet); };
 $('btnLeave').onclick = () => { leaveNet(); goHome(); };
 $('btnAgain').onclick = () => {
+  if (lastMode === 'sub') { if (sub && sub.duel) { if (online()) subDuel(sub.role !== 'pilot'); } else $('btnSubSolo').onclick(); return; }
   const duel = lastMode === 'sort' ? sort && sort.duel : lastMode === 'geo' || lastMode === 'street' || lastMode === 'dish' ? geo && geo.duel : game && game.duel;
   if (duel) { if (online()) startDuel(false, lastMode); }
   else ({ sort: $('btnSortPractice'), geo: $('btnGeoPractice'), street: $('btnStreetPractice'), dish: $('btnDishPractice') }[lastMode] || $('btnPractice')).onclick();
